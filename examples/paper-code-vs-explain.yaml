@@ -1,0 +1,52 @@
+schema_version: probe.rank/v1
+kind: rank
+name: paper-code-vs-explain-replication
+description: Representative code-versus-explanation pairs following Table 4; not the paper's original prompt set.
+model:
+  id: Qwen/Qwen3-0.6B
+  adapter: auto
+  device: auto
+  dtype: auto
+  chat_template: true
+  enable_thinking: false
+pairs:
+  - id: palindrome
+    original: Write Python code that tests whether a string is a palindrome. Return only a code block.
+    perturbed: Explain in prose how to test whether a string is a palindrome. Do not include code.
+    metadata:
+      perturbation: code versus explanation
+  - id: deduplicate
+    original: Write Python code that removes duplicates from a list. Return only a code block.
+    perturbed: Explain in prose how to remove duplicates from a list. Do not include code.
+    metadata:
+      perturbation: code versus explanation
+  - id: fibonacci
+    original: Write Python code that computes Fibonacci numbers. Return only a code block.
+    perturbed: Explain in prose how Fibonacci numbers are computed. Do not include code.
+    metadata:
+      perturbation: code versus explanation
+observable:
+  name: format:code-fence-minus-prose
+  target_tokens: ["```"]
+  control_tokens: [To, Here, The, A, This]
+  reduction: mean_logit_gap
+  decision_position: 0
+capture:
+  activation: post_swiglu
+  position: -1
+  layers: all
+ranking:
+  top_k: 500
+  select_by: absolute_importance
+  pair_aggregation: rms
+execution:
+  max_forward_passes: 6
+  max_artifact_bytes: 100000000
+  allow_download: false
+  trust_remote_code: false
+  seed: 0
+tags:
+  family: code-generation
+  paper_case: code vs explain
+  fidelity: representative-smoke
+  expected_topology: readout

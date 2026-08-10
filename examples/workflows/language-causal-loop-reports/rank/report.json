@@ -1,0 +1,45 @@
+{
+  "claims": [
+    {
+      "claim_id": "first-token-observable",
+      "claim_type": "observable_validity",
+      "evidence_run_ids": [],
+      "limitations": [
+        "Generated continuation behavior has not yet been evaluated."
+      ],
+      "statement": "The first-token observable was checked for binary decision crossing and argmax membership.",
+      "status": "blocked"
+    },
+    {
+      "claim_id": "replicated-ranking",
+      "claim_type": "replicated_ranking",
+      "evidence_run_ids": [],
+      "limitations": [
+        "Replication is observational until controlled intervention.",
+        "Only informative pairs support the aggregate claim."
+      ],
+      "statement": "The signed ranking was aggregated across prompt pairs.",
+      "status": "blocked"
+    }
+  ],
+  "evidence_stage": "replicated_ranking",
+  "headline": "Replicated observational neuron ranking",
+  "key_results": [
+    "Observable movement mean: +23.8568.",
+    "FFN additive prediction mean: +29.5445; FFN/Skip mean: +0.121397.",
+    "First-token qualification: 0/3 informative pairs.",
+    "Highest aggregate FFN mass is layer 27 (RMS mass 43.7732).",
+    "Leading ranked unit is L23/N59 (importance RMS 2.62011, sign consistency 1.000)."
+  ],
+  "limitations": [
+    "Replicated ranking from 3 discovery prompt pairs remains observational; causal claims require intervention and broader validation."
+  ],
+  "parent_run_ids": [],
+  "recommended_next_steps": [
+    "Run generated-behavior qualification with a predeclared evaluator.",
+    "Test ranked neurons with dose sweeps and matched random controls."
+  ],
+  "run_id": "20260810T000018-b5cfefbfd03d",
+  "run_kind": "rank",
+  "schema_version": "probe.research-report/v1"
+}

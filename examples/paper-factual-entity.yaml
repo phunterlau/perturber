@@ -1,0 +1,52 @@
+schema_version: probe.rank/v1
+kind: rank
+name: paper-factual-entity-replication
+description: Representative France-to-UK entity swaps following Table 4; repeated phrasings retain a fixed Paris-minus-London observable.
+model:
+  id: Qwen/Qwen3-0.6B
+  adapter: auto
+  device: auto
+  dtype: auto
+  chat_template: true
+  enable_thinking: false
+pairs:
+  - id: direct-question
+    original: What is the capital of France? Answer with only the city name.
+    perturbed: What is the capital of the United Kingdom? Answer with only the city name.
+    metadata:
+      perturbation: entity swap
+  - id: completion
+    original: Complete this fact with only the missing city name. The capital of France is
+    perturbed: Complete this fact with only the missing city name. The capital of the United Kingdom is
+    metadata:
+      perturbation: entity swap
+  - id: concise-question
+    original: Name France's capital. Respond with one city only.
+    perturbed: Name the United Kingdom's capital. Respond with one city only.
+    metadata:
+      perturbation: entity swap
+observable:
+  name: factual:paris-minus-london
+  target_tokens: [Paris]
+  control_tokens: [London]
+  reduction: mean_logit_gap
+  decision_position: 0
+capture:
+  activation: post_swiglu
+  position: -1
+  layers: all
+ranking:
+  top_k: 500
+  select_by: absolute_importance
+  pair_aggregation: rms
+execution:
+  max_forward_passes: 6
+  max_artifact_bytes: 100000000
+  allow_download: false
+  trust_remote_code: false
+  seed: 0
+tags:
+  family: factual-recall
+  paper_case: entity swap
+  fidelity: representative-smoke
+  expected_topology: readout

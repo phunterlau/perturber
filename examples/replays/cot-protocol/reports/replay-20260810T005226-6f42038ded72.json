@@ -1,0 +1,2485 @@
+{
+  "artifact_hashes": {
+    "all_matched": false,
+    "artifacts": {
+      "layers.csv": {
+        "baseline": "ae0df95aec3471fd307bccfc5ee6725c335fed0009f4f0017f09eafbd275eca7",
+        "matched": true,
+        "replay": "ae0df95aec3471fd307bccfc5ee6725c335fed0009f4f0017f09eafbd275eca7"
+      },
+      "neurons.csv": {
+        "baseline": "34edd52e4cbd742dc300183cc2e623a59e785a772a0e09571c71a23ba9ea4bee",
+        "matched": true,
+        "replay": "34edd52e4cbd742dc300183cc2e623a59e785a772a0e09571c71a23ba9ea4bee"
+      },
+      "spec.json": {
+        "baseline": "13f75bd2a8bf931dcf981194f0c5e32ef02c01c3114686261c794a750321437e",
+        "matched": false,
+        "replay": "284c171f3f2b58514acc1c28b3d6ffda2009d8c02977915cdc318e6691995a62"
+      },
+      "tensors.safetensors": {
+        "baseline": "3331a47dff84481e762ff079a23f0eec88bc3868cc407704cc318631f4d2b821",
+        "matched": true,
+        "replay": "3331a47dff84481e762ff079a23f0eec88bc3868cc407704cc318631f4d2b821"
+      }
+    },
+    "policy": "report"
+  },
+  "baseline_run_id": "20260809T221625-6f42038ded72",
+  "checks": [
+    {
+      "baseline": "qwen3-0.6b-cot-protocol",
+      "detail": null,
+      "name": "driver_name",
+      "passed": true,
+      "replay": "qwen3-0.6b-cot-protocol",
+      "required": true
+    },
+    {
+      "baseline": [],
+      "detail": null,
+      "name": "artifact_integrity",
+      "passed": true,
+      "replay": [],
+      "required": true
+    },
+    {
+      "baseline": "595f494e494bb1eb9c44cc3c1fb0dcb65655043d29a4ea3196880a5e0d44c2f4",
+      "detail": null,
+      "name": "science_hash",
+      "passed": true,
+      "replay": "595f494e494bb1eb9c44cc3c1fb0dcb65655043d29a4ea3196880a5e0d44c2f4",
+      "required": true
+    },
+    {
+      "baseline": "7f66947668dfe8e48875429810b8a3df76a92d9252cac4a943127d0c25ccede0",
+      "detail": null,
+      "name": "request_hash",
+      "passed": true,
+      "replay": "7f66947668dfe8e48875429810b8a3df76a92d9252cac4a943127d0c25ccede0",
+      "required": true
+    },
+    {
+      "baseline": "595f494e494bb1eb9c44cc3c1fb0dcb65655043d29a4ea3196880a5e0d44c2f4",
+      "detail": null,
+      "name": "driver_science_hash",
+      "passed": true,
+      "replay": "595f494e494bb1eb9c44cc3c1fb0dcb65655043d29a4ea3196880a5e0d44c2f4",
+      "required": true
+    },
+    {
+      "baseline": "6f42038ded72f3179cdadf5c51cd47b15989f938c9faabb83b49c4e3e8d89b9a",
+      "detail": null,
+      "name": "run_fingerprint",
+      "passed": true,
+      "replay": "6f42038ded72f3179cdadf5c51cd47b15989f938c9faabb83b49c4e3e8d89b9a",
+      "required": true
+    },
+    {
+      "baseline": "perturbation-probing-mvp-v1",
+      "detail": null,
+      "name": "algorithm_version",
+      "passed": true,
+      "replay": "perturbation-probing-mvp-v1",
+      "required": true
+    },
+    {
+      "baseline": {
+        "adapter": "qwen3-dense-swiglu-v1",
+        "device": "mps",
+        "dtype": "float16",
+        "layer_count": 28,
+        "model_id": "Qwen/Qwen3-0.6B",
+        "model_type": "qwen3",
+        "parameter_count": 596049920,
+        "resolved_revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "detail": null,
+      "name": "resolved_model",
+      "passed": true,
+      "replay": {
+        "adapter": "qwen3-dense-swiglu-v1",
+        "device": "mps",
+        "dtype": "float16",
+        "layer_count": 28,
+        "model_id": "Qwen/Qwen3-0.6B",
+        "model_type": "qwen3",
+        "parameter_count": 596049920,
+        "resolved_revision": "c1899de289a04d12100db370d81485cdf75e47ca"
+      },
+      "required": true
+    },
+    {
+      "baseline": {
+        "control": [
+          {
+            "decoded": "The",
+            "text": "The",
+            "token_id": 785
+          },
+          {
+            "decoded": "To",
+            "text": "To",
+            "token_id": 1249
+          },
+          {
+            "decoded": "We",
+            "text": "We",
+            "token_id": 1654
+          },
+          {
+            "decoded": "I",
+            "text": "I",
+            "token_id": 40
+          }
+        ],
+        "name": "cot:think-token-minus-direct-prose",
+        "target": [
+          {
+            "decoded": "<think>",
+            "text": "<think>",
+            "token_id": 151667
+          }
+        ]
+      },
+      "detail": null,
+      "name": "observable",
+      "passed": true,
+      "replay": {
+        "control": [
+          {
+            "decoded": "The",
+            "text": "The",
+            "token_id": 785
+          },
+          {
+            "decoded": "To",
+            "text": "To",
+            "token_id": 1249
+          },
+          {
+            "decoded": "We",
+            "text": "We",
+            "token_id": 1654
+          },
+          {
+            "decoded": "I",
+            "text": "I",
+            "token_id": 40
+          }
+        ],
+        "name": "cot:think-token-minus-direct-prose",
+        "target": [
+          {
+            "decoded": "<think>",
+            "text": "<think>",
+            "token_id": 151667
+          }
+        ]
+      },
+      "required": true
+    },
+    {
+      "baseline": [
+        "arithmetic-complexity",
+        "factual-complexity",
+        "logic-complexity"
+      ],
+      "detail": null,
+      "name": "pair_ids",
+      "passed": true,
+      "replay": [
+        "arithmetic-complexity",
+        "factual-complexity",
+        "logic-complexity"
+      ],
+      "required": true
+    },
+    {
+      "baseline": [],
+      "detail": "Pinned revision, adapter, device, dtype, seed, and selected environment.",
+      "name": "driver_execution_contract",
+      "passed": true,
+      "replay": [],
+      "required": true
+    },
+    {
+      "baseline": {
+        "machine": "arm64",
+        "probing": "0.2.0",
+        "python": "3.12.12",
+        "pytorch_enable_mps_fallback": "unset",
+        "torch": "2.13.0",
+        "torch_deterministic_algorithms": "false",
+        "transformers": "5.14.1"
+      },
+      "detail": null,
+      "name": "baseline_environment_contract",
+      "passed": true,
+      "replay": {
+        "machine": "arm64",
+        "probing": "0.2.0",
+        "python": "3.12.12",
+        "pytorch_enable_mps_fallback": "unset",
+        "torch": "2.13.0",
+        "torch_deterministic_algorithms": "false",
+        "transformers": "5.14.1"
+      },
+      "required": true
+    },
+    {
+      "baseline": {
+        "absolute": 0.001,
+        "relative": 0.001
+      },
+      "detail": null,
+      "name": "numeric_tolerances",
+      "passed": true,
+      "replay": {
+        "passed": 102,
+        "total": 102
+      },
+      "required": true
+    },
+    {
+      "baseline": {
+        "arithmetic-complexity": [
+          "<think>",
+          "<think>"
+        ],
+        "factual-complexity": [
+          "<think>",
+          "<think>"
+        ],
+        "logic-complexity": [
+          "<think>",
+          "<think>"
+        ]
+      },
+      "detail": null,
+      "name": "predictions",
+      "passed": true,
+      "replay": {
+        "arithmetic-complexity": [
+          "<think>",
+          "<think>"
+        ],
+        "factual-complexity": [
+          "<think>",
+          "<think>"
+        ],
+        "logic-complexity": [
+          "<think>",
+          "<think>"
+        ]
+      },
+      "required": true
+    },
+    {
+      "baseline": 0.95,
+      "detail": null,
+      "name": "top_neuron_overlap",
+      "passed": true,
+      "replay": 1.0,
+      "required": true
+    },
+    {
+      "baseline": 1.0,
+      "detail": null,
+      "name": "mean_rank_displacement",
+      "passed": true,
+      "replay": 0.0,
+      "required": true
+    },
+    {
+      "baseline": {
+        "absolute": 0.001,
+        "relative": 0.001
+      },
+      "detail": null,
+      "name": "top_neuron_importance_tolerances",
+      "passed": true,
+      "replay": {
+        "passed": 200,
+        "total": 200
+      },
+      "required": true
+    },
+    {
+      "baseline": 0.98,
+      "detail": null,
+      "name": "neuron_sign_agreement",
+      "passed": true,
+      "replay": 1.0,
+      "required": true
+    },
+    {
+      "baseline": {
+        "layers.csv": "ae0df95aec3471fd307bccfc5ee6725c335fed0009f4f0017f09eafbd275eca7",
+        "neurons.csv": "34edd52e4cbd742dc300183cc2e623a59e785a772a0e09571c71a23ba9ea4bee",
+        "spec.json": "13f75bd2a8bf931dcf981194f0c5e32ef02c01c3114686261c794a750321437e",
+        "tensors.safetensors": "3331a47dff84481e762ff079a23f0eec88bc3868cc407704cc318631f4d2b821"
+      },
+      "detail": "Stable scientific artifacts only; manifests, events, summaries, run IDs, and timing are excluded.",
+      "name": "stable_artifact_hashes",
+      "passed": false,
+      "replay": {
+        "layers.csv": "ae0df95aec3471fd307bccfc5ee6725c335fed0009f4f0017f09eafbd275eca7",
+        "neurons.csv": "34edd52e4cbd742dc300183cc2e623a59e785a772a0e09571c71a23ba9ea4bee",
+        "spec.json": "284c171f3f2b58514acc1c28b3d6ffda2009d8c02977915cdc318e6691995a62",
+        "tensors.safetensors": "3331a47dff84481e762ff079a23f0eec88bc3868cc407704cc318631f4d2b821"
+      },
+      "required": false
+    }
+  ],
+  "created_at": "2026-08-10T00:52:26.853869Z",
+  "driver_name": "qwen3-0.6b-cot-protocol",
+  "numeric": {
+    "absolute_tolerance": 0.001,
+    "maximum_absolute_difference": 0.0,
+    "metrics": [
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.05820947992261036,
+        "name": "aggregate.ffn_skip_mean",
+        "passed": true,
+        "replay": 0.05820947992261036
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.41314697265625,
+        "name": "aggregate.measured_delta_mean",
+        "passed": true,
+        "replay": 1.41314697265625
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 4.603138009707133,
+        "name": "aggregate.predicted_delta_mean",
+        "passed": true,
+        "replay": 4.603138009707133
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.9992730021476746,
+        "name": "layer.0.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 0.9992730021476746
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.433610200881958,
+        "name": "layer.0.rms_mass",
+        "passed": true,
+        "replay": 0.433610200881958
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.023358028382062912,
+        "name": "layer.0.signed_mean_sum",
+        "passed": true,
+        "replay": -0.023358028382062912
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.039713899294535,
+        "name": "layer.1.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 2.039713899294535
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.6912240982055664,
+        "name": "layer.1.rms_mass",
+        "passed": true,
+        "replay": 0.6912240982055664
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.04564768821001053,
+        "name": "layer.1.signed_mean_sum",
+        "passed": true,
+        "replay": 0.04564768821001053
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 11.665681521097818,
+        "name": "layer.10.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 11.665681521097818
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.31146240234375,
+        "name": "layer.10.rms_mass",
+        "passed": true,
+        "replay": 5.31146240234375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.03636900335550308,
+        "name": "layer.10.signed_mean_sum",
+        "passed": true,
+        "replay": -0.03636900335550308
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 12.975802103678385,
+        "name": "layer.11.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 12.975802103678385
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 6.501086235046387,
+        "name": "layer.11.rms_mass",
+        "passed": true,
+        "replay": 6.501086235046387
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.13949209451675415,
+        "name": "layer.11.signed_mean_sum",
+        "passed": true,
+        "replay": 0.13949209451675415
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 13.447381337483725,
+        "name": "layer.12.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 13.447381337483725
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 6.641244888305664,
+        "name": "layer.12.rms_mass",
+        "passed": true,
+        "replay": 6.641244888305664
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2656160891056061,
+        "name": "layer.12.signed_mean_sum",
+        "passed": true,
+        "replay": 0.2656160891056061
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 13.013838132222494,
+        "name": "layer.13.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 13.013838132222494
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 6.785477161407471,
+        "name": "layer.13.rms_mass",
+        "passed": true,
+        "replay": 6.785477161407471
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.06587532162666321,
+        "name": "layer.13.signed_mean_sum",
+        "passed": true,
+        "replay": 0.06587532162666321
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 16.810017903645832,
+        "name": "layer.14.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 16.810017903645832
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 7.533934593200684,
+        "name": "layer.14.rms_mass",
+        "passed": true,
+        "replay": 7.533934593200684
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.057836856693029404,
+        "name": "layer.14.signed_mean_sum",
+        "passed": true,
+        "replay": -0.057836856693029404
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 18.788056055704754,
+        "name": "layer.15.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 18.788056055704754
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 8.914118766784668,
+        "name": "layer.15.rms_mass",
+        "passed": true,
+        "replay": 8.914118766784668
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.3631196618080139,
+        "name": "layer.15.signed_mean_sum",
+        "passed": true,
+        "replay": -0.3631196618080139
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 22.796688715616863,
+        "name": "layer.16.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 22.796688715616863
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 10.997109413146973,
+        "name": "layer.16.rms_mass",
+        "passed": true,
+        "replay": 10.997109413146973
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.3874579071998596,
+        "name": "layer.16.signed_mean_sum",
+        "passed": true,
+        "replay": -0.3874579071998596
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 28.310256322224934,
+        "name": "layer.17.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 28.310256322224934
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 11.948783874511719,
+        "name": "layer.17.rms_mass",
+        "passed": true,
+        "replay": 11.948783874511719
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18295061588287354,
+        "name": "layer.17.signed_mean_sum",
+        "passed": true,
+        "replay": 0.18295061588287354
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 30.481529871622723,
+        "name": "layer.18.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 30.481529871622723
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 13.260977745056152,
+        "name": "layer.18.rms_mass",
+        "passed": true,
+        "replay": 13.260977745056152
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.0957682803273201,
+        "name": "layer.18.signed_mean_sum",
+        "passed": true,
+        "replay": 0.0957682803273201
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 34.76332918802897,
+        "name": "layer.19.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 34.76332918802897
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 16.028532028198242,
+        "name": "layer.19.rms_mass",
+        "passed": true,
+        "replay": 16.028532028198242
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.021363839507102966,
+        "name": "layer.19.signed_mean_sum",
+        "passed": true,
+        "replay": 0.021363839507102966
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.60925563176473,
+        "name": "layer.2.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 2.60925563176473
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.1072252988815308,
+        "name": "layer.2.rms_mass",
+        "passed": true,
+        "replay": 1.1072252988815308
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.0621958002448082,
+        "name": "layer.2.signed_mean_sum",
+        "passed": true,
+        "replay": 0.0621958002448082
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 38.85791778564453,
+        "name": "layer.20.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 38.85791778564453
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 18.04718780517578,
+        "name": "layer.20.rms_mass",
+        "passed": true,
+        "replay": 18.04718780517578
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.036209046840667725,
+        "name": "layer.20.signed_mean_sum",
+        "passed": true,
+        "replay": 0.036209046840667725
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 40.180304209391274,
+        "name": "layer.21.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 40.180304209391274
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 17.799102783203125,
+        "name": "layer.21.rms_mass",
+        "passed": true,
+        "replay": 17.799102783203125
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.0630167722702026,
+        "name": "layer.21.signed_mean_sum",
+        "passed": true,
+        "replay": 1.0630167722702026
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 43.23928705851237,
+        "name": "layer.22.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 43.23928705851237
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 19.990774154663086,
+        "name": "layer.22.rms_mass",
+        "passed": true,
+        "replay": 19.990774154663086
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7908416986465454,
+        "name": "layer.22.signed_mean_sum",
+        "passed": true,
+        "replay": 0.7908416986465454
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 55.215274810791016,
+        "name": "layer.23.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 55.215274810791016
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 23.744569778442383,
+        "name": "layer.23.rms_mass",
+        "passed": true,
+        "replay": 23.744569778442383
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -1.0375889539718628,
+        "name": "layer.23.signed_mean_sum",
+        "passed": true,
+        "replay": -1.0375889539718628
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 48.92223103841146,
+        "name": "layer.24.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 48.92223103841146
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 22.258895874023438,
+        "name": "layer.24.rms_mass",
+        "passed": true,
+        "replay": 22.258895874023438
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.8266170024871826,
+        "name": "layer.24.signed_mean_sum",
+        "passed": true,
+        "replay": -0.8266170024871826
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 66.03094736735027,
+        "name": "layer.25.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 66.03094736735027
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 25.229389190673828,
+        "name": "layer.25.rms_mass",
+        "passed": true,
+        "replay": 25.229389190673828
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.8307877779006958,
+        "name": "layer.25.signed_mean_sum",
+        "passed": true,
+        "replay": -0.8307877779006958
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 73.33749135335286,
+        "name": "layer.26.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 73.33749135335286
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 32.120391845703125,
+        "name": "layer.26.rms_mass",
+        "passed": true,
+        "replay": 32.120391845703125
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16547942161560059,
+        "name": "layer.26.signed_mean_sum",
+        "passed": true,
+        "replay": 0.16547942161560059
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 146.74275716145834,
+        "name": "layer.27.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 146.74275716145834
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 43.9660758972168,
+        "name": "layer.27.rms_mass",
+        "passed": true,
+        "replay": 43.9660758972168
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.396371364593506,
+        "name": "layer.27.signed_mean_sum",
+        "passed": true,
+        "replay": 5.396371364593506
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.06723157564799,
+        "name": "layer.3.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 5.06723157564799
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.880211591720581,
+        "name": "layer.3.rms_mass",
+        "passed": true,
+        "replay": 1.880211591720581
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.01196981966495514,
+        "name": "layer.3.signed_mean_sum",
+        "passed": true,
+        "replay": 0.01196981966495514
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 4.716316382090251,
+        "name": "layer.4.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 4.716316382090251
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.042478561401367,
+        "name": "layer.4.rms_mass",
+        "passed": true,
+        "replay": 2.042478561401367
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.001237494871020317,
+        "name": "layer.4.signed_mean_sum",
+        "passed": true,
+        "replay": 0.001237494871020317
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.3313571612040205,
+        "name": "layer.5.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 5.3313571612040205
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.7559618949890137,
+        "name": "layer.5.rms_mass",
+        "passed": true,
+        "replay": 2.7559618949890137
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.06915779411792755,
+        "name": "layer.5.signed_mean_sum",
+        "passed": true,
+        "replay": -0.06915779411792755
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.341541926066081,
+        "name": "layer.6.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 5.341541926066081
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.982815980911255,
+        "name": "layer.6.rms_mass",
+        "passed": true,
+        "replay": 2.982815980911255
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.09394902735948563,
+        "name": "layer.6.signed_mean_sum",
+        "passed": true,
+        "replay": -0.09394902735948563
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 5.680323759714763,
+        "name": "layer.7.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 5.680323759714763
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.963165283203125,
+        "name": "layer.7.rms_mass",
+        "passed": true,
+        "replay": 2.963165283203125
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.05283740907907486,
+        "name": "layer.7.signed_mean_sum",
+        "passed": true,
+        "replay": -0.05283740907907486
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 6.767322858174642,
+        "name": "layer.8.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 6.767322858174642
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 3.508357048034668,
+        "name": "layer.8.rms_mass",
+        "passed": true,
+        "replay": 3.508357048034668
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.04818528890609741,
+        "name": "layer.8.signed_mean_sum",
+        "passed": true,
+        "replay": -0.04818528890609741
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 9.049036979675293,
+        "name": "layer.9.activation_delta_norm_mean",
+        "passed": true,
+        "replay": 9.049036979675293
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 4.459041595458984,
+        "name": "layer.9.rms_mass",
+        "passed": true,
+        "replay": 4.459041595458984
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.08636832982301712,
+        "name": "layer.9.signed_mean_sum",
+        "passed": true,
+        "replay": 0.08636832982301712
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.05035841621439055,
+        "name": "pair.arithmetic-complexity.ffn_skip_mean",
+        "passed": true,
+        "replay": 0.05035841621439055
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.64691162109375,
+        "name": "pair.arithmetic-complexity.measured_delta",
+        "passed": true,
+        "replay": 0.64691162109375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 26.9991455078125,
+        "name": "pair.arithmetic-complexity.original_gap",
+        "passed": true,
+        "replay": 26.9991455078125
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 27.64605712890625,
+        "name": "pair.arithmetic-complexity.perturbed_gap",
+        "passed": true,
+        "replay": 27.64605712890625
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.873563289642334,
+        "name": "pair.arithmetic-complexity.predicted_delta",
+        "passed": true,
+        "replay": 2.873563289642334
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.07292279773871199,
+        "name": "pair.factual-complexity.ffn_skip_mean",
+        "passed": true,
+        "replay": 0.07292279773871199
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.873291015625,
+        "name": "pair.factual-complexity.measured_delta",
+        "passed": true,
+        "replay": 2.873291015625
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 27.625732421875,
+        "name": "pair.factual-complexity.original_gap",
+        "passed": true,
+        "replay": 27.625732421875
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 30.4990234375,
+        "name": "pair.factual-complexity.perturbed_gap",
+        "passed": true,
+        "replay": 30.4990234375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 10.691439628601074,
+        "name": "pair.factual-complexity.predicted_delta",
+        "passed": true,
+        "replay": 10.691439628601074
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.05134722581472854,
+        "name": "pair.logic-complexity.ffn_skip_mean",
+        "passed": true,
+        "replay": 0.05134722581472854
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.71923828125,
+        "name": "pair.logic-complexity.measured_delta",
+        "passed": true,
+        "replay": 0.71923828125
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 27.919677734375,
+        "name": "pair.logic-complexity.original_gap",
+        "passed": true,
+        "replay": 27.919677734375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 28.638916015625,
+        "name": "pair.logic-complexity.perturbed_gap",
+        "passed": true,
+        "replay": 28.638916015625
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.24441111087799072,
+        "name": "pair.logic-complexity.predicted_delta",
+        "passed": true,
+        "replay": 0.24441111087799072
+      }
+    ],
+    "passed_count": 102,
+    "relative_tolerance": 0.001,
+    "total_count": 102
+  },
+  "ranking": {
+    "maximum_mean_rank_displacement": 1.0,
+    "maximum_neuron_absolute_difference": 0.0,
+    "mean_rank_displacement": 0.0,
+    "minimum_overlap": 0.95,
+    "minimum_sign_agreement": 0.98,
+    "neuron_metrics": [
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1276628077030182,
+        "name": "neuron.18:1341.importance_mean",
+        "passed": true,
+        "replay": 0.1276628077030182
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.174825057387352,
+        "name": "neuron.18:1341.importance_rms",
+        "passed": true,
+        "replay": 0.174825057387352
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.11248919367790222,
+        "name": "neuron.18:1689.importance_mean",
+        "passed": true,
+        "replay": 0.11248919367790222
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15711969137191772,
+        "name": "neuron.18:1689.importance_rms",
+        "passed": true,
+        "replay": 0.15711969137191772
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.21189148724079132,
+        "name": "neuron.19:1969.importance_mean",
+        "passed": true,
+        "replay": -0.21189148724079132
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2182021588087082,
+        "name": "neuron.19:1969.importance_rms",
+        "passed": true,
+        "replay": 0.2182021588087082
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.11690758913755417,
+        "name": "neuron.20:2976.importance_mean",
+        "passed": true,
+        "replay": -0.11690758913755417
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15488815307617188,
+        "name": "neuron.20:2976.importance_rms",
+        "passed": true,
+        "replay": 0.15488815307617188
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.16070424020290375,
+        "name": "neuron.20:660.importance_mean",
+        "passed": true,
+        "replay": -0.16070424020290375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17291602492332458,
+        "name": "neuron.20:660.importance_rms",
+        "passed": true,
+        "replay": 0.17291602492332458
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18544304370880127,
+        "name": "neuron.21:144.importance_mean",
+        "passed": true,
+        "replay": 0.18544304370880127
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1890632063150406,
+        "name": "neuron.21:144.importance_rms",
+        "passed": true,
+        "replay": 0.1890632063150406
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.26980409026145935,
+        "name": "neuron.21:152.importance_mean",
+        "passed": true,
+        "replay": 0.26980409026145935
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2959055006504059,
+        "name": "neuron.21:152.importance_rms",
+        "passed": true,
+        "replay": 0.2959055006504059
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15226906538009644,
+        "name": "neuron.21:5.importance_mean",
+        "passed": true,
+        "replay": 0.15226906538009644
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15418051183223724,
+        "name": "neuron.21:5.importance_rms",
+        "passed": true,
+        "replay": 0.15418051183223724
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.04195075109601021,
+        "name": "neuron.22:269.importance_mean",
+        "passed": true,
+        "replay": -0.04195075109601021
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.21143628656864166,
+        "name": "neuron.22:269.importance_rms",
+        "passed": true,
+        "replay": 0.21143628656864166
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1850503534078598,
+        "name": "neuron.22:284.importance_mean",
+        "passed": true,
+        "replay": 0.1850503534078598
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.19359995424747467,
+        "name": "neuron.22:284.importance_rms",
+        "passed": true,
+        "replay": 0.19359995424747467
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.13068602979183197,
+        "name": "neuron.22:65.importance_mean",
+        "passed": true,
+        "replay": 0.13068602979183197
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1564682275056839,
+        "name": "neuron.22:65.importance_rms",
+        "passed": true,
+        "replay": 0.1564682275056839
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.16988013684749603,
+        "name": "neuron.22:933.importance_mean",
+        "passed": true,
+        "replay": -0.16988013684749603
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1794843226671219,
+        "name": "neuron.22:933.importance_rms",
+        "passed": true,
+        "replay": 0.1794843226671219
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.20067475736141205,
+        "name": "neuron.23:111.importance_mean",
+        "passed": true,
+        "replay": 0.20067475736141205
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.20528411865234375,
+        "name": "neuron.23:111.importance_rms",
+        "passed": true,
+        "replay": 0.20528411865234375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.18120728433132172,
+        "name": "neuron.23:1149.importance_mean",
+        "passed": true,
+        "replay": -0.18120728433132172
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18993332982063293,
+        "name": "neuron.23:1149.importance_rms",
+        "passed": true,
+        "replay": 0.18993332982063293
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.15898990631103516,
+        "name": "neuron.23:1876.importance_mean",
+        "passed": true,
+        "replay": -0.15898990631103516
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1607506424188614,
+        "name": "neuron.23:1876.importance_rms",
+        "passed": true,
+        "replay": 0.1607506424188614
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.24510246515274048,
+        "name": "neuron.23:215.importance_mean",
+        "passed": true,
+        "replay": -0.24510246515274048
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2543623447418213,
+        "name": "neuron.23:215.importance_rms",
+        "passed": true,
+        "replay": 0.2543623447418213
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.07536287605762482,
+        "name": "neuron.23:296.importance_mean",
+        "passed": true,
+        "replay": 0.07536287605762482
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15934886038303375,
+        "name": "neuron.23:296.importance_rms",
+        "passed": true,
+        "replay": 0.15934886038303375
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.1780509501695633,
+        "name": "neuron.23:368.importance_mean",
+        "passed": true,
+        "replay": -0.1780509501695633
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17880220711231232,
+        "name": "neuron.23:368.importance_rms",
+        "passed": true,
+        "replay": 0.17880220711231232
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.0241632461547852,
+        "name": "neuron.23:431.importance_mean",
+        "passed": true,
+        "replay": 1.0241632461547852
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.0395079851150513,
+        "name": "neuron.23:431.importance_rms",
+        "passed": true,
+        "replay": 1.0395079851150513
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15981127321720123,
+        "name": "neuron.23:587.importance_mean",
+        "passed": true,
+        "replay": 0.15981127321720123
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16626468300819397,
+        "name": "neuron.23:587.importance_rms",
+        "passed": true,
+        "replay": 0.16626468300819397
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.24076956510543823,
+        "name": "neuron.24:1296.importance_mean",
+        "passed": true,
+        "replay": -0.24076956510543823
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.247811958193779,
+        "name": "neuron.24:1296.importance_rms",
+        "passed": true,
+        "replay": 0.247811958193779
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.321193665266037,
+        "name": "neuron.24:1534.importance_mean",
+        "passed": true,
+        "replay": 0.321193665266037
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.3245035409927368,
+        "name": "neuron.24:1534.importance_rms",
+        "passed": true,
+        "replay": 0.3245035409927368
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.11248429864645004,
+        "name": "neuron.24:249.importance_mean",
+        "passed": true,
+        "replay": -0.11248429864645004
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1643020063638687,
+        "name": "neuron.24:249.importance_rms",
+        "passed": true,
+        "replay": 0.1643020063638687
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.15511225163936615,
+        "name": "neuron.24:2825.importance_mean",
+        "passed": true,
+        "replay": -0.15511225163936615
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15664684772491455,
+        "name": "neuron.24:2825.importance_rms",
+        "passed": true,
+        "replay": 0.15664684772491455
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.17807136476039886,
+        "name": "neuron.24:37.importance_mean",
+        "passed": true,
+        "replay": -0.17807136476039886
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1782616525888443,
+        "name": "neuron.24:37.importance_rms",
+        "passed": true,
+        "replay": 0.1782616525888443
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.2033328264951706,
+        "name": "neuron.24:46.importance_mean",
+        "passed": true,
+        "replay": -0.2033328264951706
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.21556998789310455,
+        "name": "neuron.24:46.importance_rms",
+        "passed": true,
+        "replay": 0.21556998789310455
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.04233211651444435,
+        "name": "neuron.24:918.importance_mean",
+        "passed": true,
+        "replay": 0.04233211651444435
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1851370930671692,
+        "name": "neuron.24:918.importance_rms",
+        "passed": true,
+        "replay": 0.1851370930671692
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.08124717324972153,
+        "name": "neuron.25:11.importance_mean",
+        "passed": true,
+        "replay": 0.08124717324972153
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.38275471329689026,
+        "name": "neuron.25:11.importance_rms",
+        "passed": true,
+        "replay": 0.38275471329689026
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.17674531042575836,
+        "name": "neuron.25:1704.importance_mean",
+        "passed": true,
+        "replay": -0.17674531042575836
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17722631990909576,
+        "name": "neuron.25:1704.importance_rms",
+        "passed": true,
+        "replay": 0.17722631990909576
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.4608633816242218,
+        "name": "neuron.25:22.importance_mean",
+        "passed": true,
+        "replay": -0.4608633816242218
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.4619717299938202,
+        "name": "neuron.25:22.importance_rms",
+        "passed": true,
+        "replay": 0.4619717299938202
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.04358482360839844,
+        "name": "neuron.25:24.importance_mean",
+        "passed": true,
+        "replay": -0.04358482360839844
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2978997230529785,
+        "name": "neuron.25:24.importance_rms",
+        "passed": true,
+        "replay": 0.2978997230529785
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7027403712272644,
+        "name": "neuron.25:409.importance_mean",
+        "passed": true,
+        "replay": 0.7027403712272644
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7407328486442566,
+        "name": "neuron.25:409.importance_rms",
+        "passed": true,
+        "replay": 0.7407328486442566
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.21421073377132416,
+        "name": "neuron.25:487.importance_mean",
+        "passed": true,
+        "replay": 0.21421073377132416
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.23016612231731415,
+        "name": "neuron.25:487.importance_rms",
+        "passed": true,
+        "replay": 0.23016612231731415
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.03277096524834633,
+        "name": "neuron.25:538.importance_mean",
+        "passed": true,
+        "replay": 0.03277096524834633
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15878108143806458,
+        "name": "neuron.25:538.importance_rms",
+        "passed": true,
+        "replay": 0.15878108143806458
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.19040901958942413,
+        "name": "neuron.25:55.importance_mean",
+        "passed": true,
+        "replay": -0.19040901958942413
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.21794186532497406,
+        "name": "neuron.25:55.importance_rms",
+        "passed": true,
+        "replay": 0.21794186532497406
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.13797150552272797,
+        "name": "neuron.25:7.importance_mean",
+        "passed": true,
+        "replay": 0.13797150552272797
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2512712776660919,
+        "name": "neuron.25:7.importance_rms",
+        "passed": true,
+        "replay": 0.2512712776660919
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.163105309009552,
+        "name": "neuron.25:8.importance_mean",
+        "passed": true,
+        "replay": -0.163105309009552
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1853649616241455,
+        "name": "neuron.25:8.importance_rms",
+        "passed": true,
+        "replay": 0.1853649616241455
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.20140881836414337,
+        "name": "neuron.26:107.importance_mean",
+        "passed": true,
+        "replay": -0.20140881836414337
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.212228924036026,
+        "name": "neuron.26:107.importance_rms",
+        "passed": true,
+        "replay": 0.212228924036026
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18665950000286102,
+        "name": "neuron.26:2.importance_mean",
+        "passed": true,
+        "replay": 0.18665950000286102
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.21567751467227936,
+        "name": "neuron.26:2.importance_rms",
+        "passed": true,
+        "replay": 0.21567751467227936
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.12824080884456635,
+        "name": "neuron.26:214.importance_mean",
+        "passed": true,
+        "replay": 0.12824080884456635
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.14988738298416138,
+        "name": "neuron.26:214.importance_rms",
+        "passed": true,
+        "replay": 0.14988738298416138
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.7393414378166199,
+        "name": "neuron.26:2699.importance_mean",
+        "passed": true,
+        "replay": -0.7393414378166199
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7912362813949585,
+        "name": "neuron.26:2699.importance_rms",
+        "passed": true,
+        "replay": 0.7912362813949585
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -1.5224666595458984,
+        "name": "neuron.26:315.importance_mean",
+        "passed": true,
+        "replay": -1.5224666595458984
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.558953046798706,
+        "name": "neuron.26:315.importance_rms",
+        "passed": true,
+        "replay": 1.558953046798706
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.22586579620838165,
+        "name": "neuron.26:34.importance_mean",
+        "passed": true,
+        "replay": -0.22586579620838165
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2419968694448471,
+        "name": "neuron.26:34.importance_rms",
+        "passed": true,
+        "replay": 0.2419968694448471
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15147367119789124,
+        "name": "neuron.26:368.importance_mean",
+        "passed": true,
+        "replay": 0.15147367119789124
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17763559520244598,
+        "name": "neuron.26:368.importance_rms",
+        "passed": true,
+        "replay": 0.17763559520244598
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.49370312690734863,
+        "name": "neuron.26:37.importance_mean",
+        "passed": true,
+        "replay": -0.49370312690734863
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.5824534893035889,
+        "name": "neuron.26:37.importance_rms",
+        "passed": true,
+        "replay": 0.5824534893035889
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2710210084915161,
+        "name": "neuron.26:389.importance_mean",
+        "passed": true,
+        "replay": 0.2710210084915161
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.287433385848999,
+        "name": "neuron.26:389.importance_rms",
+        "passed": true,
+        "replay": 0.287433385848999
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.964552640914917,
+        "name": "neuron.26:507.importance_mean",
+        "passed": true,
+        "replay": 0.964552640914917
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.041654348373413,
+        "name": "neuron.26:507.importance_rms",
+        "passed": true,
+        "replay": 1.041654348373413
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.2669323682785034,
+        "name": "neuron.26:637.importance_mean",
+        "passed": true,
+        "replay": -0.2669323682785034
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.28826871514320374,
+        "name": "neuron.26:637.importance_rms",
+        "passed": true,
+        "replay": 0.28826871514320374
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.11414381861686707,
+        "name": "neuron.26:70.importance_mean",
+        "passed": true,
+        "replay": -0.11414381861686707
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.29480791091918945,
+        "name": "neuron.26:70.importance_rms",
+        "passed": true,
+        "replay": 0.29480791091918945
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.3583476543426514,
+        "name": "neuron.26:732.importance_mean",
+        "passed": true,
+        "replay": 2.3583476543426514
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 2.3653318881988525,
+        "name": "neuron.26:732.importance_rms",
+        "passed": true,
+        "replay": 2.3653318881988525
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17255668342113495,
+        "name": "neuron.26:843.importance_mean",
+        "passed": true,
+        "replay": 0.17255668342113495
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17374065518379211,
+        "name": "neuron.26:843.importance_rms",
+        "passed": true,
+        "replay": 0.17374065518379211
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.2553630769252777,
+        "name": "neuron.27:110.importance_mean",
+        "passed": true,
+        "replay": -0.2553630769252777
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.31854134798049927,
+        "name": "neuron.27:110.importance_rms",
+        "passed": true,
+        "replay": 0.31854134798049927
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.14429347217082977,
+        "name": "neuron.27:1121.importance_mean",
+        "passed": true,
+        "replay": 0.14429347217082977
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.20446231961250305,
+        "name": "neuron.27:1121.importance_rms",
+        "passed": true,
+        "replay": 0.20446231961250305
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.19693607091903687,
+        "name": "neuron.27:1132.importance_mean",
+        "passed": true,
+        "replay": -0.19693607091903687
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.20458565652370453,
+        "name": "neuron.27:1132.importance_rms",
+        "passed": true,
+        "replay": 0.20458565652370453
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.17875583469867706,
+        "name": "neuron.27:126.importance_mean",
+        "passed": true,
+        "replay": -0.17875583469867706
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.19345597922801971,
+        "name": "neuron.27:126.importance_rms",
+        "passed": true,
+        "replay": 0.19345597922801971
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.5677704215049744,
+        "name": "neuron.27:127.importance_mean",
+        "passed": true,
+        "replay": 0.5677704215049744
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.570582926273346,
+        "name": "neuron.27:127.importance_rms",
+        "passed": true,
+        "replay": 0.570582926273346
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2337542623281479,
+        "name": "neuron.27:1290.importance_mean",
+        "passed": true,
+        "replay": 0.2337542623281479
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.24631015956401825,
+        "name": "neuron.27:1290.importance_rms",
+        "passed": true,
+        "replay": 0.24631015956401825
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.43529605865478516,
+        "name": "neuron.27:131.importance_mean",
+        "passed": true,
+        "replay": 0.43529605865478516
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.4366611838340759,
+        "name": "neuron.27:131.importance_rms",
+        "passed": true,
+        "replay": 0.4366611838340759
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.4671233594417572,
+        "name": "neuron.27:1371.importance_mean",
+        "passed": true,
+        "replay": -0.4671233594417572
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.5213302969932556,
+        "name": "neuron.27:1371.importance_rms",
+        "passed": true,
+        "replay": 0.5213302969932556
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.018588319420814514,
+        "name": "neuron.27:1408.importance_mean",
+        "passed": true,
+        "replay": 0.018588319420814514
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17454928159713745,
+        "name": "neuron.27:1408.importance_rms",
+        "passed": true,
+        "replay": 0.17454928159713745
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16764096915721893,
+        "name": "neuron.27:1491.importance_mean",
+        "passed": true,
+        "replay": 0.16764096915721893
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17067094147205353,
+        "name": "neuron.27:1491.importance_rms",
+        "passed": true,
+        "replay": 0.17067094147205353
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.11561513692140579,
+        "name": "neuron.27:1520.importance_mean",
+        "passed": true,
+        "replay": -0.11561513692140579
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.33081480860710144,
+        "name": "neuron.27:1520.importance_rms",
+        "passed": true,
+        "replay": 0.33081480860710144
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.14012572169303894,
+        "name": "neuron.27:159.importance_mean",
+        "passed": true,
+        "replay": -0.14012572169303894
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17155008018016815,
+        "name": "neuron.27:159.importance_rms",
+        "passed": true,
+        "replay": 0.17155008018016815
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.5507342219352722,
+        "name": "neuron.27:165.importance_mean",
+        "passed": true,
+        "replay": 0.5507342219352722
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.582084596157074,
+        "name": "neuron.27:165.importance_rms",
+        "passed": true,
+        "replay": 0.582084596157074
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.07014471292495728,
+        "name": "neuron.27:1775.importance_mean",
+        "passed": true,
+        "replay": -0.07014471292495728
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17553739249706268,
+        "name": "neuron.27:1775.importance_rms",
+        "passed": true,
+        "replay": 0.17553739249706268
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2852599322795868,
+        "name": "neuron.27:1799.importance_mean",
+        "passed": true,
+        "replay": 0.2852599322795868
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2885131239891052,
+        "name": "neuron.27:1799.importance_rms",
+        "passed": true,
+        "replay": 0.2885131239891052
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.16504015028476715,
+        "name": "neuron.27:1837.importance_mean",
+        "passed": true,
+        "replay": -0.16504015028476715
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16533876955509186,
+        "name": "neuron.27:1837.importance_rms",
+        "passed": true,
+        "replay": 0.16533876955509186
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.25448986887931824,
+        "name": "neuron.27:1839.importance_mean",
+        "passed": true,
+        "replay": 0.25448986887931824
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2619064152240753,
+        "name": "neuron.27:1839.importance_rms",
+        "passed": true,
+        "replay": 0.2619064152240753
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.2147093564271927,
+        "name": "neuron.27:19.importance_mean",
+        "passed": true,
+        "replay": -0.2147093564271927
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2261802852153778,
+        "name": "neuron.27:19.importance_rms",
+        "passed": true,
+        "replay": 0.2261802852153778
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.6989872455596924,
+        "name": "neuron.27:1942.importance_mean",
+        "passed": true,
+        "replay": 0.6989872455596924
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7870626449584961,
+        "name": "neuron.27:1942.importance_rms",
+        "passed": true,
+        "replay": 0.7870626449584961
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2933950126171112,
+        "name": "neuron.27:204.importance_mean",
+        "passed": true,
+        "replay": 0.2933950126171112
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.3270930349826813,
+        "name": "neuron.27:204.importance_rms",
+        "passed": true,
+        "replay": 0.3270930349826813
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15166474878787994,
+        "name": "neuron.27:218.importance_mean",
+        "passed": true,
+        "replay": 0.15166474878787994
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17342473566532135,
+        "name": "neuron.27:218.importance_rms",
+        "passed": true,
+        "replay": 0.17342473566532135
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.11977153271436691,
+        "name": "neuron.27:222.importance_mean",
+        "passed": true,
+        "replay": 0.11977153271436691
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16910144686698914,
+        "name": "neuron.27:222.importance_rms",
+        "passed": true,
+        "replay": 0.16910144686698914
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17918284237384796,
+        "name": "neuron.27:2307.importance_mean",
+        "passed": true,
+        "replay": 0.17918284237384796
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18055428564548492,
+        "name": "neuron.27:2307.importance_rms",
+        "passed": true,
+        "replay": 0.18055428564548492
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.5589669346809387,
+        "name": "neuron.27:26.importance_mean",
+        "passed": true,
+        "replay": 0.5589669346809387
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.7076628804206848,
+        "name": "neuron.27:26.importance_rms",
+        "passed": true,
+        "replay": 0.7076628804206848
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.277595192193985,
+        "name": "neuron.27:2688.importance_mean",
+        "passed": true,
+        "replay": -0.277595192193985
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.31273093819618225,
+        "name": "neuron.27:2688.importance_rms",
+        "passed": true,
+        "replay": 0.31273093819618225
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.08354301005601883,
+        "name": "neuron.27:2769.importance_mean",
+        "passed": true,
+        "replay": -0.08354301005601883
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17124468088150024,
+        "name": "neuron.27:2769.importance_rms",
+        "passed": true,
+        "replay": 0.17124468088150024
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15599729120731354,
+        "name": "neuron.27:2840.importance_mean",
+        "passed": true,
+        "replay": 0.15599729120731354
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16486488282680511,
+        "name": "neuron.27:2840.importance_rms",
+        "passed": true,
+        "replay": 0.16486488282680511
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.39156267046928406,
+        "name": "neuron.27:311.importance_mean",
+        "passed": true,
+        "replay": 0.39156267046928406
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.44851797819137573,
+        "name": "neuron.27:311.importance_rms",
+        "passed": true,
+        "replay": 0.44851797819137573
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1489049345254898,
+        "name": "neuron.27:312.importance_mean",
+        "passed": true,
+        "replay": 0.1489049345254898
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.199822336435318,
+        "name": "neuron.27:312.importance_rms",
+        "passed": true,
+        "replay": 0.199822336435318
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18831998109817505,
+        "name": "neuron.27:314.importance_mean",
+        "passed": true,
+        "replay": 0.18831998109817505
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.20911219716072083,
+        "name": "neuron.27:314.importance_rms",
+        "passed": true,
+        "replay": 0.20911219716072083
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.1386924535036087,
+        "name": "neuron.27:318.importance_mean",
+        "passed": true,
+        "replay": 0.1386924535036087
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.15850147604942322,
+        "name": "neuron.27:318.importance_rms",
+        "passed": true,
+        "replay": 0.15850147604942322
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.23521947860717773,
+        "name": "neuron.27:348.importance_mean",
+        "passed": true,
+        "replay": 0.23521947860717773
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2611311078071594,
+        "name": "neuron.27:348.importance_rms",
+        "passed": true,
+        "replay": 0.2611311078071594
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.23243515193462372,
+        "name": "neuron.27:42.importance_mean",
+        "passed": true,
+        "replay": 0.23243515193462372
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.23653541505336761,
+        "name": "neuron.27:42.importance_rms",
+        "passed": true,
+        "replay": 0.23653541505336761
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.2007555216550827,
+        "name": "neuron.27:456.importance_mean",
+        "passed": true,
+        "replay": -0.2007555216550827
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.35865721106529236,
+        "name": "neuron.27:456.importance_rms",
+        "passed": true,
+        "replay": 0.35865721106529236
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.973685085773468,
+        "name": "neuron.27:47.importance_mean",
+        "passed": true,
+        "replay": 0.973685085773468
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.2091630697250366,
+        "name": "neuron.27:47.importance_rms",
+        "passed": true,
+        "replay": 1.2091630697250366
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.41705501079559326,
+        "name": "neuron.27:49.importance_mean",
+        "passed": true,
+        "replay": -0.41705501079559326
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.48056432604789734,
+        "name": "neuron.27:49.importance_rms",
+        "passed": true,
+        "replay": 0.48056432604789734
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.35369017720222473,
+        "name": "neuron.27:491.importance_mean",
+        "passed": true,
+        "replay": 0.35369017720222473
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.36158230900764465,
+        "name": "neuron.27:491.importance_rms",
+        "passed": true,
+        "replay": 0.36158230900764465
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.358022540807724,
+        "name": "neuron.27:53.importance_mean",
+        "passed": true,
+        "replay": -0.358022540807724
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.4111918807029724,
+        "name": "neuron.27:53.importance_rms",
+        "passed": true,
+        "replay": 0.4111918807029724
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.15788692235946655,
+        "name": "neuron.27:8.importance_mean",
+        "passed": true,
+        "replay": -0.15788692235946655
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16133026778697968,
+        "name": "neuron.27:8.importance_rms",
+        "passed": true,
+        "replay": 0.16133026778697968
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.9843909740447998,
+        "name": "neuron.27:81.importance_mean",
+        "passed": true,
+        "replay": 0.9843909740447998
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.0198332071304321,
+        "name": "neuron.27:81.importance_rms",
+        "passed": true,
+        "replay": 1.0198332071304321
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.17469274997711182,
+        "name": "neuron.27:830.importance_mean",
+        "passed": true,
+        "replay": 0.17469274997711182
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.18433748185634613,
+        "name": "neuron.27:830.importance_rms",
+        "passed": true,
+        "replay": 0.18433748185634613
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.4642601013183594,
+        "name": "neuron.27:84.importance_mean",
+        "passed": true,
+        "replay": 1.4642601013183594
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 1.7034695148468018,
+        "name": "neuron.27:84.importance_rms",
+        "passed": true,
+        "replay": 1.7034695148468018
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.5943384766578674,
+        "name": "neuron.27:878.importance_mean",
+        "passed": true,
+        "replay": -0.5943384766578674
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.6095695495605469,
+        "name": "neuron.27:878.importance_rms",
+        "passed": true,
+        "replay": 0.6095695495605469
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.08927664905786514,
+        "name": "neuron.27:89.importance_mean",
+        "passed": true,
+        "replay": -0.08927664905786514
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.19895659387111664,
+        "name": "neuron.27:89.importance_rms",
+        "passed": true,
+        "replay": 0.19895659387111664
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.3397040069103241,
+        "name": "neuron.27:890.importance_mean",
+        "passed": true,
+        "replay": 0.3397040069103241
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.3427835702896118,
+        "name": "neuron.27:890.importance_rms",
+        "passed": true,
+        "replay": 0.3427835702896118
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.23833318054676056,
+        "name": "neuron.27:894.importance_mean",
+        "passed": true,
+        "replay": -0.23833318054676056
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.2392386496067047,
+        "name": "neuron.27:894.importance_rms",
+        "passed": true,
+        "replay": 0.2392386496067047
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.3023304045200348,
+        "name": "neuron.27:950.importance_mean",
+        "passed": true,
+        "replay": -0.3023304045200348
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.3489238917827606,
+        "name": "neuron.27:950.importance_rms",
+        "passed": true,
+        "replay": 0.3489238917827606
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.16223521530628204,
+        "name": "neuron.27:973.importance_mean",
+        "passed": true,
+        "replay": -0.16223521530628204
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.16483289003372192,
+        "name": "neuron.27:973.importance_rms",
+        "passed": true,
+        "replay": 0.16483289003372192
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": -0.43490758538246155,
+        "name": "neuron.27:997.importance_mean",
+        "passed": true,
+        "replay": -0.43490758538246155
+      },
+      {
+        "absolute_difference": 0.0,
+        "baseline": 0.46870914101600647,
+        "name": "neuron.27:997.importance_rms",
+        "passed": true,
+        "replay": 0.46870914101600647
+      }
+    ],
+    "neuron_metrics_passed": 200,
+    "neuron_metrics_total": 200,
+    "overlap_count": 100,
+    "overlap_fraction": 1.0,
+    "sign_agreement": 1.0,
+    "top_n": 100
+  },
+  "replay_run_id": "20260810T005226-6f42038ded72",
+  "report_files": [
+    "reports/replay-20260810T005226-6f42038ded72.json",
+    "reports/replay-20260810T005226-6f42038ded72.md"
+  ],
+  "schema_version": "probe.replay-report/v1",
+  "verdict": "passed",
+  "warnings": [
+    "Stable artifact bytes differed, but hashes are report-only under this policy."
+  ]
+}

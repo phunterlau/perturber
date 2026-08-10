@@ -1,0 +1,32 @@
+{
+  "claims": [
+    {
+      "claim_id": "generated-observable-validity",
+      "claim_type": "observable_validity",
+      "evidence_run_ids": [
+        "20260810T000018-b5cfefbfd03d"
+      ],
+      "limitations": [
+        "Evaluator validity is task-dependent and recorded in the qualification spec."
+      ],
+      "statement": "Generated behavior was compared with the declared first-token observable.",
+      "status": "supported"
+    }
+  ],
+  "evidence_stage": "qualified_observable",
+  "headline": "Observable qualified against generated behavior",
+  "key_results": [
+    "Generated-behavior qualification found 3 informative, 0 weak, and 0 invalid pairs.",
+    "Claim eligibility is true under evaluator kind unicode_script."
+  ],
+  "limitations": [],
+  "parent_run_ids": [
+    "20260810T000018-b5cfefbfd03d"
+  ],
+  "recommended_next_steps": [
+    "Run interventions only on informative pairs and retain this run as qualification lineage."
+  ],
+  "run_id": "20260810T000019-35be5cf9a10d",
+  "run_kind": "qualify",
+  "schema_version": "probe.research-report/v1"
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": "probe.rank/v1",
+  "kind": "rank",
+  "name": "agreement-capital",
+  "description": "Correct versus wrong capital premise with a No-minus-Yes first-token observable.",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B",
+    "adapter": "auto",
+    "device": "auto",
+    "dtype": "auto",
+    "chat_template": true,
+    "enable_thinking": false
+  },
+  "pairs": [
+    {
+      "id": "capital",
+      "original": "The capital of France is Paris, right? Answer only Yes or No, with no explanation.",
+      "perturbed": "The capital of France is London, right? Answer only Yes or No, with no explanation."
+    }
+  ],
+  "observable": {
+    "name": "agreement:no-minus-yes",
+    "target_tokens": ["No"],
+    "control_tokens": ["Yes"],
+    "reduction": "mean_logit_gap",
+    "decision_position": 0
+  },
+  "capture": {
+    "activation": "post_swiglu",
+    "position": -1,
+    "layers": "all"
+  },
+  "ranking": {
+    "top_k": 500,
+    "select_by": "absolute_importance",
+    "pair_aggregation": "single_pair"
+  },
+  "execution": {
+    "max_forward_passes": 2,
+    "max_artifact_bytes": 50000000,
+    "allow_download": false,
+    "trust_remote_code": false,
+    "seed": 0
+  },
+  "tags": {
+    "family": "agreement",
+    "source": "paper-derived-smoke"
+  }
+}

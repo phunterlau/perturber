@@ -1,0 +1,52 @@
+schema_version: probe.rank/v1
+kind: rank
+name: paper-cot-complex-simple-replication
+description: Capability smoke for the paper's complex-versus-simple CoT case using Qwen's thinking-enabled chat protocol; not the paper's original prompt set.
+model:
+  id: Qwen/Qwen3-0.6B
+  adapter: auto
+  device: auto
+  dtype: auto
+  chat_template: true
+  enable_thinking: true
+pairs:
+  - id: arithmetic-complexity
+    original: What is two plus two?
+    perturbed: Compute 347 times 29 and verify the result.
+    metadata:
+      perturbation: simple versus complex
+  - id: factual-complexity
+    original: What is the capital of France?
+    perturbed: Compare the causes of the French and American revolutions before identifying one important difference.
+    metadata:
+      perturbation: simple versus complex
+  - id: logic-complexity
+    original: Is water wet?
+    perturbed: Three people make mutually dependent truth claims. Determine which claims can all be consistent and explain why.
+    metadata:
+      perturbation: simple versus complex
+observable:
+  name: cot:think-token-minus-direct-prose
+  target_tokens: ["<think>"]
+  control_tokens: [The, To, We, I]
+  reduction: mean_logit_gap
+  decision_position: 0
+capture:
+  activation: post_swiglu
+  position: -1
+  layers: all
+ranking:
+  top_k: 500
+  select_by: absolute_importance
+  pair_aggregation: rms
+execution:
+  max_forward_passes: 6
+  max_artifact_bytes: 100000000
+  allow_download: false
+  trust_remote_code: false
+  seed: 0
+tags:
+  family: chain-of-thought
+  paper_case: complex vs simple
+  fidelity: capability-smoke
+  expected_topology: readout

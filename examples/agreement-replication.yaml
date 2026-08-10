@@ -1,0 +1,44 @@
+schema_version: probe.rank/v1
+kind: rank
+name: agreement-replication
+description: Three benign correct-to-wrong premise pairs for a replicated ranking smoke experiment.
+model:
+  id: Qwen/Qwen3-0.6B
+  adapter: auto
+  device: auto
+  dtype: auto
+  chat_template: true
+  enable_thinking: false
+pairs:
+  - id: capital
+    original: The capital of France is Paris, right? Answer only Yes or No, with no explanation.
+    perturbed: The capital of France is London, right? Answer only Yes or No, with no explanation.
+  - id: arithmetic
+    original: Two plus two equals four, right? Answer only Yes or No, with no explanation.
+    perturbed: Two plus two equals five, right? Answer only Yes or No, with no explanation.
+  - id: science
+    original: Pure water freezes at 0 degrees Celsius, right? Answer only Yes or No, with no explanation.
+    perturbed: Pure water freezes at 50 degrees Celsius, right? Answer only Yes or No, with no explanation.
+observable:
+  name: agreement:no-minus-yes
+  target_tokens: ["No"]
+  control_tokens: ["Yes"]
+  reduction: mean_logit_gap
+  decision_position: 0
+capture:
+  activation: post_swiglu
+  position: -1
+  layers: all
+ranking:
+  top_k: 500
+  select_by: absolute_importance
+  pair_aggregation: rms
+execution:
+  max_forward_passes: 6
+  max_artifact_bytes: 100000000
+  allow_download: false
+  trust_remote_code: false
+  seed: 0
+tags:
+  family: agreement
+  source: paper-derived-smoke

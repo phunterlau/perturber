@@ -1,0 +1,62 @@
+{
+  "schema_version": "probe.example-analysis/v1",
+  "recorded_at": "2026-08-10T17:56:48Z",
+  "driver": "../language-attention-path.yaml",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "adapter": "qwen3-dense-swiglu-v1",
+    "device": "mps",
+    "dtype": "float16",
+    "output_heads": 16,
+    "key_value_heads": 8,
+    "head_dim": 128
+  },
+  "runs": {
+    "rank": "20260810T170133-2c34fe5560c1",
+    "qualification": "20260810T170237-2c8bff05deb5",
+    "attention_rank": "20260810T170329-5539a70b30aa",
+    "attention_intervention": "20260810T171018-99e985b6dd5c",
+    "token_edges": "20260810T173044-b708d29e58b5",
+    "head_path": "20260810T175635-f16c842a5393"
+  },
+  "logical_forward_passes": 91,
+  "qualification": {
+    "informative_pairs": 3,
+    "pair_count": 3
+  },
+  "top_heads": [
+    {"rank": 1, "layer": 25, "head": 0, "direct_effect_rms": 3.755626678466797, "sign_consistency": 1.0},
+    {"rank": 2, "layer": 18, "head": 12, "direct_effect_rms": 2.3003323078155518, "sign_consistency": 1.0},
+    {"rank": 3, "layer": 24, "head": 0, "direct_effect_rms": 1.468026876449585, "sign_consistency": 1.0},
+    {"rank": 4, "layer": 24, "head": 2, "direct_effect_rms": 1.289035439491272, "sign_consistency": 1.0}
+  ],
+  "head_patch_doses": [
+    {"head_count": 1, "selected_effect_mean": 1.30530579884847, "random_absolute_effect_mean": 0.05484364827473958, "controlled_absolute_effect": 1.2504621505737303},
+    {"head_count": 4, "selected_effect_mean": 15.562662760416666, "random_absolute_effect_mean": 0.1885711669921875, "controlled_absolute_effect": 15.37409159342448},
+    {"head_count": 16, "selected_effect_mean": 22.06616226832072, "random_absolute_effect_mean": 0.4275803248087565, "controlled_absolute_effect": 21.638581943511966}
+  ],
+  "path": {
+    "sender": {"layer": 18, "head": 12},
+    "receiver": {"layer": 25, "head": 0},
+    "pair_id": "capital",
+    "alignment": "identity",
+    "sender_total_effect": 14.20703125,
+    "path_specific_effect": 0.45742225646972656,
+    "normalized_source_progress": 0.01910500909907914,
+    "matched_random_absolute_mean": 0.00570220947265625,
+    "claim_status": "supported"
+  },
+  "replay": {
+    "attention_rank_replay": "20260810T173148-5539a70b30aa",
+    "attention_intervention_replay": "20260810T173209-99e985b6dd5c",
+    "head_path_replay": "20260810T175648-f16c842a5393",
+    "science_hashes_match": true,
+    "rank_stable_artifacts_exact": 5,
+    "rank_stable_artifacts_total": 5,
+    "intervention_summary_exact": true,
+    "intervention_observations_exact": true,
+    "path_summary_exact": true,
+    "path_observations_exact": true
+  }
+}

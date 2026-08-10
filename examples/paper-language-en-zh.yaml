@@ -1,0 +1,52 @@
+schema_version: probe.rank/v1
+kind: rank
+name: paper-language-en-zh-replication
+description: Representative English-to-Chinese routing pairs following Table 4 and Section 2.3; not the paper's benchmark set.
+model:
+  id: Qwen/Qwen3-0.6B
+  adapter: auto
+  device: auto
+  dtype: auto
+  chat_template: true
+  enable_thinking: false
+pairs:
+  - id: capital
+    original: What is the capital of France? Answer in English.
+    perturbed: 法国的首都是哪里？请用中文回答。
+    metadata:
+      perturbation: English versus Chinese prompt
+  - id: arithmetic
+    original: What is two plus two? Answer in English.
+    perturbed: 二加二等于多少？请用中文回答。
+    metadata:
+      perturbation: English versus Chinese prompt
+  - id: science
+    original: At what temperature does pure water freeze? Answer in English.
+    perturbed: 纯水在什么温度结冰？请用中文回答。
+    metadata:
+      perturbation: English versus Chinese prompt
+observable:
+  name: language:chinese-minus-english
+  target_tokens: [的, 是, 我, 这, 在]
+  control_tokens: [The, It, This, A, I]
+  reduction: mean_logit_gap
+  decision_position: 0
+capture:
+  activation: post_swiglu
+  position: -1
+  layers: all
+ranking:
+  top_k: 500
+  select_by: absolute_importance
+  pair_aggregation: rms
+execution:
+  max_forward_passes: 6
+  max_artifact_bytes: 100000000
+  allow_download: false
+  trust_remote_code: false
+  seed: 0
+tags:
+  family: language-routing
+  paper_case: EN vs ZH
+  fidelity: representative-smoke
+  expected_topology: readout
