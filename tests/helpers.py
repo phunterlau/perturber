@@ -12,6 +12,7 @@ from probing.adapters.base import (
     LayerResidualCheckpoints,
     ModelAdapter,
     ResidualEdit,
+    ResidualGradientCapture,
     TrajectoryForwardCapture,
 )
 from probing.domain import (
@@ -141,6 +142,37 @@ class FakeAdapter(ModelAdapter):
 
     def decode_residual(self, residual: torch.Tensor) -> torch.Tensor:
         return residual.detach().float().cpu()
+
+    def forward_residual_gradients(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        observable: ResolvedObservable,
+    ) -> ResidualGradientCapture:
+        baseline = self.forward_capture(input_ids, tokenized, capture_position)
+        perturbed = bool(int(input_ids[0, 0]))
+        return ResidualGradientCapture(
+            logits=baseline.logits,
+            residuals=(torch.tensor([1.0, 0.5]) if perturbed else torch.tensor([0.5, 1.0]),),
+            gradients=(torch.tensor([1.0, 0.25]) if perturbed else torch.tensor([0.5, 0.5]),),
+            tokenized=tokenized,
+        )
+
+    def native_residual_gradient(
+        self,
+        residual: torch.Tensor,
+        observable: ResolvedObservable,
+    ) -> torch.Tensor:
+        return torch.tensor([0.75, 0.25])
+
+    def layer_couplings(
+        self,
+        directions: tuple[torch.Tensor, ...],
+    ) -> tuple[torch.Tensor, ...]:
+        assert len(directions) == 1
+        value = float(directions[0][0].item())
+        return (torch.tensor([2.0 * value, -1.0 * value]),)
 
     @staticmethod
     def _edited_activation(

@@ -20,6 +20,7 @@ from .base import (
     LayerResidualCheckpoints,
     ModelAdapter,
     ResidualEdit,
+    ResidualGradientCapture,
     TrajectoryForwardCapture,
 )
 
@@ -740,6 +741,108 @@ class QwenAdapter(ModelAdapter):
         return TrajectoryForwardCapture(
             logits=outputs.logits[0, -1, :].detach().float().cpu(),
             checkpoints=tuple(checkpoints),
+            tokenized=tokenized,
+        )
+
+    def layer_couplings(
+        self,
+        directions: tuple[torch.Tensor, ...],
+    ) -> tuple[torch.Tensor, ...]:
+        if len(directions) != len(self.layers):
+            raise ValueError("layer-aware directions must match the model layer count")
+        values: list[torch.Tensor] = []
+        for index, (layer, direction) in enumerate(
+            zip(self.layers, directions, strict=True)
+        ):
+            weight = layer.mlp.down_proj.weight.detach().float()
+            local = direction.detach().to(device=weight.device, dtype=torch.float32)
+            if local.numel() != weight.shape[0]:
+                raise ValueError(
+                    f"layer {index} direction width does not match FFN output width"
+                )
+            values.append(torch.matmul(local.flatten(), weight).detach().float().cpu())
+        return tuple(values)
+
+    def native_residual_gradient(
+        self,
+        residual: torch.Tensor,
+        observable: ResolvedObservable,
+    ) -> torch.Tensor:
+        vector = residual.detach().to(device=self.device, dtype=self.dtype).requires_grad_(True)
+        final_norm = getattr(self.model.model, "norm", None)
+        output_embedding = self.model.get_output_embeddings()
+        if output_embedding is None:
+            raise RuntimeError("model does not expose an output embedding")
+        with torch.enable_grad():
+            normalized = final_norm(vector) if final_norm is not None else vector
+            logits = output_embedding(normalized)
+            target = logits[list(observable.target_ids)].mean()
+            control = logits[list(observable.control_ids)].mean()
+            (gradient,) = torch.autograd.grad(target - control, (vector,))
+        return gradient.detach().float().cpu()
+
+    def forward_residual_gradients(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        observable: ResolvedObservable,
+    ) -> ResidualGradientCapture:
+        sequence_length = int(input_ids.shape[-1])
+        resolved_position = (
+            capture_position
+            if capture_position >= 0
+            else sequence_length + capture_position
+        )
+        if not 0 <= resolved_position < sequence_length:
+            raise ValueError(
+                f"capture position {capture_position} is outside a prompt of "
+                f"{sequence_length} tokens"
+            )
+        if any(parameter.grad is not None for parameter in self.model.parameters()):
+            raise RuntimeError("model parameter gradients must be clear before sensitivity capture")
+
+        outputs_by_layer: dict[int, torch.Tensor] = {}
+
+        def output_hook(layer_index: int):
+            def hook(
+                _module: torch.nn.Module,
+                _inputs: tuple[torch.Tensor, ...],
+                output: torch.Tensor | tuple[torch.Tensor, ...],
+            ) -> None:
+                outputs_by_layer[layer_index] = (
+                    output[0] if isinstance(output, tuple) else output
+                )
+
+            return hook
+
+        with ExitStack() as stack:
+            for index, layer in enumerate(self.layers):
+                handle = layer.register_forward_hook(output_hook(index))
+                stack.callback(handle.remove)
+            with torch.enable_grad():
+                outputs = self.model(
+                    input_ids=input_ids.to(self.device),
+                    use_cache=False,
+                )
+                logits = outputs.logits[0, -1, :]
+                target = logits[list(observable.target_ids)].mean()
+                control = logits[list(observable.control_ids)].mean()
+                tensors = tuple(outputs_by_layer[index] for index in range(len(self.layers)))
+                gradients = torch.autograd.grad(target - control, tensors)
+
+        if any(parameter.grad is not None for parameter in self.model.parameters()):
+            raise RuntimeError("residual sensitivity capture mutated parameter gradients")
+        return ResidualGradientCapture(
+            logits=logits.detach().float().cpu(),
+            residuals=tuple(
+                tensor[0, resolved_position, :].detach().float().cpu()
+                for tensor in tensors
+            ),
+            gradients=tuple(
+                gradient[0, resolved_position, :].detach().float().cpu()
+                for gradient in gradients
+            ),
             tokenized=tokenized,
         )
 

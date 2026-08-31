@@ -29,6 +29,8 @@ from .contracts import (
     DirectionInjectionSpec,
     ErrorDetail,
     ExperimentSpec,
+    FFNCouplingRunSummary,
+    FFNCouplingSpec,
     InterventionRunSummary,
     InterventionSpec,
     JobEvent,
@@ -555,6 +557,100 @@ class ArtifactRepository:
                 f"artifact size {total_size} exceeds max_artifact_bytes "
                 f"{max_artifact_bytes}",
                 details={"planned_bytes": total_size, "limit": max_artifact_bytes},
+            )
+        os.replace(staging, destination)
+        return manifest, destination
+
+    def commit_ffn_coupling(
+        self,
+        *,
+        job_id: str,
+        request_id: str,
+        spec: FFNCouplingSpec,
+        summary: FFNCouplingRunSummary,
+        tensors: dict[str, torch.Tensor],
+        requested_model: Any,
+        resolved_model: dict[str, Any],
+        science_hash: str,
+        run_fingerprint: str,
+        algorithm_version: str,
+        created_at: datetime,
+        max_artifact_bytes: int,
+    ) -> tuple[RunManifest, Path]:
+        timestamp = datetime.now(timezone.utc)
+        run_id = f"{timestamp.strftime('%Y%m%dT%H%M%S')}-{run_fingerprint[:12]}"
+        destination = self.runs / run_id
+        if destination.exists():
+            run_id = f"{run_id}-{job_id[:6]}"
+            destination = self.runs / run_id
+        staging = self.jobs / self._component(job_id, "job") / "staging"
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir()
+        _write_json(staging / "spec.json", spec)
+        _write_json(staging / "summary.json", summary)
+        with (staging / "ffn-coupling-pairs.jsonl").open(
+            "w", encoding="utf-8"
+        ) as handle:
+            for item in summary.pairs:
+                handle.write(canonical_json(item) + "\n")
+        for filename, records in (
+            ("ffn-coupling-layers.csv", summary.layers),
+            ("ffn-coupling-neurons.csv", summary.neurons),
+        ):
+            rows = [item.model_dump(mode="json") for item in records]
+            with (staging / filename).open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+        save_file(tensors, staging / "ffn-coupling-tensors.safetensors")
+        source_events = self.jobs / self._component(job_id, "job") / "events.jsonl"
+        shutil.copy2(source_events, staging / "events.jsonl")
+        media_types = {
+            "spec.json": "application/json",
+            "summary.json": "application/json",
+            "ffn-coupling-pairs.jsonl": "application/x-ndjson",
+            "ffn-coupling-layers.csv": "text/csv",
+            "ffn-coupling-neurons.csv": "text/csv",
+            "ffn-coupling-tensors.safetensors": "application/octet-stream",
+            "events.jsonl": "application/x-ndjson",
+        }
+        refs = tuple(
+            _artifact_ref(staging, staging / name, media_type)
+            for name, media_type in media_types.items()
+        )
+        parent_ids = tuple(
+            item
+            for item in (spec.parent_run_id, spec.trajectory_run_id)
+            if item is not None
+        )
+        manifest = RunManifest(
+            run_id=run_id,
+            job_id=job_id,
+            request_id=request_id,
+            science_hash=science_hash,
+            run_fingerprint=run_fingerprint,
+            created_at=created_at,
+            completed_at=timestamp,
+            evidence_stage="observational_ffn_coupling",
+            run_kind="ffn_coupling",
+            parent_run_ids=parent_ids,
+            algorithm_version=algorithm_version,
+            requested_model=requested_model,
+            resolved_model=resolved_model,
+            environment=_environment_metadata(),
+            pair_count=len(summary.pairs),
+            artifacts=refs,
+            warnings=summary.warnings,
+        )
+        _write_json(staging / "manifest.json", manifest)
+        total_size = sum(item.size_bytes for item in refs) + (
+            staging / "manifest.json"
+        ).stat().st_size
+        if total_size > max_artifact_bytes:
+            shutil.rmtree(staging)
+            raise ArtifactError(
+                f"artifact size {total_size} exceeds max_artifact_bytes {max_artifact_bytes}"
             )
         os.replace(staging, destination)
         return manifest, destination

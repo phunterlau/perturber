@@ -22,6 +22,7 @@ ATTENTION_RANK_SCHEMA_VERSION = "probe.attention-rank/v1"
 ATTENTION_INTERVENTION_SCHEMA_VERSION = "probe.attention-intervention/v1"
 ATTENTION_TRACE_SCHEMA_VERSION = "probe.attention-trace/v1"
 TRAJECTORY_SCHEMA_VERSION = "probe.trajectory/v1"
+FFN_COUPLING_SCHEMA_VERSION = "probe.ffn-coupling/v1"
 EVENT_SCHEMA_VERSION = "probe.event/v1"
 MANIFEST_SCHEMA_VERSION = "probe.run/v1"
 
@@ -273,6 +274,50 @@ class TrajectorySpec(StrictModel):
             raise ValueError("trajectory checkpoints must be unique")
         if len(self.pair_ids) != len(set(self.pair_ids)):
             raise ValueError("trajectory pair IDs must be unique")
+        return self
+
+
+class FFNCouplingSpec(StrictModel):
+    schema_version: Literal["probe.ffn-coupling/v1"] = FFN_COUPLING_SCHEMA_VERSION
+    kind: Literal["ffn_coupling"] = "ffn_coupling"
+    name: str = "unnamed-ffn-coupling"
+    description: str | None = None
+    parent_run_id: str
+    trajectory_run_id: str | None = None
+    pair_ids: tuple[str, ...] = ()
+    layers: tuple[int, ...] = ()
+    position: Literal[-1] = -1
+    methods: tuple[
+        Literal["native_local_readout", "downstream_endpoint_gradient"], ...
+    ] = ("native_local_readout", "downstream_endpoint_gradient")
+    top_k: PositiveInt = Field(default=500, le=10_000)
+    max_backward_passes: PositiveInt
+    execution: ExecutionLimits
+    tags: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("name", "parent_run_id")
+    @classmethod
+    def validate_ffn_coupling_identity(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("FFN coupling name and parent run ID must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def validate_ffn_coupling(self) -> "FFNCouplingSpec":
+        if not self.methods:
+            raise ValueError("FFN coupling requires at least one method")
+        if len(self.methods) != len(set(self.methods)):
+            raise ValueError("FFN coupling methods must be unique")
+        if "downstream_endpoint_gradient" not in self.methods:
+            raise ValueError(
+                "FFN coupling v1 requires downstream_endpoint_gradient"
+            )
+        if len(self.layers) != len(set(self.layers)) or any(
+            layer < 0 for layer in self.layers
+        ):
+            raise ValueError("FFN coupling layers must be unique and non-negative")
+        if len(self.pair_ids) != len(set(self.pair_ids)):
+            raise ValueError("FFN coupling pair IDs must be unique")
         return self
 
 
@@ -749,6 +794,7 @@ class AttentionTraceSpec(StrictModel):
 ExperimentSpec = (
     RankSpec
     | TrajectorySpec
+    | FFNCouplingSpec
     | QualificationSpec
     | InterventionSpec
     | DirectionInjectionSpec
@@ -848,6 +894,7 @@ class ExperimentPlan(StrictModel):
     kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",
@@ -857,6 +904,7 @@ class ExperimentPlan(StrictModel):
     ]
     pair_count: PositiveInt
     forward_passes: PositiveInt
+    backward_passes: int = Field(default=0, ge=0)
     within_budget: bool
     model_cached: bool
     resolved_device: str
@@ -946,6 +994,7 @@ class ResearchCaseStage(StrictModel):
     kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",
@@ -1011,6 +1060,7 @@ class ExecutionReceipt(StrictModel):
     run_kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",
@@ -1158,6 +1208,62 @@ class TrajectoryRunSummary(StrictModel):
     logical_forward_passes: PositiveInt
     pairs: tuple[PairTrajectorySummary, ...]
     evidence_stage: Literal["observational_trajectory"] = "observational_trajectory"
+    claims: tuple[ClaimRecord, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+
+class FFNCouplingNeuronScore(StrictModel):
+    rank: PositiveInt
+    layer: int = Field(ge=0)
+    neuron: int = Field(ge=0)
+    activation_delta_mean: float
+    direct_coupling: float
+    direct_importance_rms: float = Field(ge=0)
+    native_coupling_mean: float | None = None
+    native_importance_mean: float | None = None
+    native_importance_rms: float | None = Field(default=None, ge=0)
+    downstream_coupling_mean: float
+    downstream_importance_mean: float
+    downstream_importance_rms: float = Field(ge=0)
+    downstream_sign_consistency: float = Field(ge=0, le=1)
+    direct_downstream_sign_agreement: float = Field(ge=0, le=1)
+
+
+class FFNCouplingLayerSummary(StrictModel):
+    layer: int = Field(ge=0)
+    downstream_rms_mass: float = Field(ge=0)
+    native_rms_mass: float | None = Field(default=None, ge=0)
+    direct_rms_mass: float = Field(ge=0)
+    top_neuron: int = Field(ge=0)
+
+
+class FFNCouplingPairSummary(StrictModel):
+    pair_id: str
+    split: Literal["discovery", "validation", "heldout"] = "discovery"
+    original_gradient_norm_mean: float = Field(ge=0)
+    perturbed_gradient_norm_mean: float = Field(ge=0)
+
+
+class FFNCouplingRunSummary(StrictModel):
+    schema_version: Literal["probe.ffn-coupling-result/v1"] = (
+        "probe.ffn-coupling-result/v1"
+    )
+    science_hash: str
+    parent_run_id: str
+    trajectory_run_id: str | None = None
+    model: dict[str, Any]
+    observable: dict[str, Any]
+    pair_count: PositiveInt
+    logical_forward_passes: PositiveInt
+    logical_backward_passes: PositiveInt
+    methods: tuple[str, ...]
+    pairs: tuple[FFNCouplingPairSummary, ...]
+    layers: tuple[FFNCouplingLayerSummary, ...]
+    neurons: tuple[FFNCouplingNeuronScore, ...]
+    total_neuron_count: PositiveInt
+    evidence_stage: Literal["observational_ffn_coupling"] = (
+        "observational_ffn_coupling"
+    )
     claims: tuple[ClaimRecord, ...] = ()
     warnings: tuple[str, ...] = ()
 
@@ -1774,6 +1880,7 @@ class WorkflowStageOutcome(StrictModel):
     kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",
@@ -1817,6 +1924,7 @@ class ResearchReport(StrictModel):
     run_kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",
@@ -1900,6 +2008,7 @@ class RunManifest(StrictModel):
         "exploratory_pair",
         "replicated_ranking",
         "observational_trajectory",
+        "observational_ffn_coupling",
         "qualified_observable",
         "causal_intervention",
         "attention_hypothesis",
@@ -1910,6 +2019,7 @@ class RunManifest(StrictModel):
     run_kind: Literal[
         "rank",
         "trajectory",
+        "ffn_coupling",
         "qualify",
         "intervention",
         "direction",

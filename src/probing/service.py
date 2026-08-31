@@ -29,6 +29,8 @@ from .contracts import (
     ErrorDetail,
     ExperimentSpec,
     ExperimentPlan,
+    FFNCouplingRunSummary,
+    FFNCouplingSpec,
     InterventionRunSummary,
     InterventionSpec,
     JobEvent,
@@ -70,6 +72,7 @@ from .attention_trace import attention_trace_plan_counts, run_attention_trace
 from .direction import direction_plan_counts, run_direction_injection
 from .qualification_workflow import run_qualification
 from .trajectory import run_trajectory, trajectory_plan_counts
+from .ffn_coupling import ffn_coupling_plan_counts, run_ffn_coupling
 from .reproducibility import seed_everything
 from .specs import hash_value, request_hash, science_hash
 
@@ -90,6 +93,7 @@ class ExecutionOutcome:
         | AttentionHeadInterventionRunSummary
         | AttentionTraceRunSummary
         | TrajectoryRunSummary
+        | FFNCouplingRunSummary
     )
 
 
@@ -169,10 +173,10 @@ class ResearchService:
         spec: (
             QualificationSpec
             | TrajectorySpec
+            | FFNCouplingSpec
             | InterventionSpec
             | DirectionInjectionSpec
             | AttentionHeadRankSpec
-            | TrajectorySpec
         ),
     ) -> tuple[RunManifest, RankSpec, RankRunSummary]:
         manifest = self.repository.load_manifest(spec.parent_run_id)
@@ -275,6 +279,7 @@ class ResearchService:
                 DirectionInjectionSpec,
                 AttentionHeadRankSpec,
                 TrajectorySpec,
+                FFNCouplingSpec,
             ),
         ):
             return self._parent_rank(spec)[1]
@@ -371,6 +376,10 @@ class ResearchService:
             limitations.append(
                 "Native trajectory values measure intermediate decodability, not causal use."
             )
+        elif isinstance(spec, FFNCouplingSpec):
+            limitations.append(
+                "Layer-aware coupling is a local first-order hypothesis until intervention-tested."
+            )
         elif isinstance(spec, QualificationSpec):
             limitations.append(
                 "Generated-behavior validity depends on the declared evaluator."
@@ -461,6 +470,7 @@ class ResearchService:
 
     def plan(self, spec: ExperimentSpec) -> ExperimentPlan:
         rank_spec = self._rank_context(spec)
+        backward_required = 0
         if isinstance(spec, RankSpec):
             pair_count = len(spec.pairs)
             required = 2 * pair_count
@@ -469,6 +479,16 @@ class ResearchService:
             try:
                 pair_count, required = trajectory_plan_counts(
                     parent_summary=parent_summary, spec=spec
+                )
+            except ValueError as exc:
+                raise CapabilityError(str(exc)) from exc
+        elif isinstance(spec, FFNCouplingSpec):
+            _manifest, parent_spec, parent_summary = self._parent_rank(spec)
+            try:
+                pair_count, required, backward_required = ffn_coupling_plan_counts(
+                    parent_spec=parent_spec,
+                    parent_summary=parent_summary,
+                    spec=spec,
                 )
             except ValueError as exc:
                 raise CapabilityError(str(exc)) from exc
@@ -548,13 +568,24 @@ class ResearchService:
                     ),
                 ),
             )
-        within_budget = required <= spec.execution.max_forward_passes
+        within_budget = required <= spec.execution.max_forward_passes and (
+            not isinstance(spec, FFNCouplingSpec)
+            or backward_required <= spec.max_backward_passes
+        )
         warnings: list[str] = []
         if not within_budget:
-            warnings.append(
-                f"requires {required} forward passes but budget allows "
-                f"{spec.execution.max_forward_passes}"
-            )
+            if required > spec.execution.max_forward_passes:
+                warnings.append(
+                    f"requires {required} forward passes but budget allows "
+                    f"{spec.execution.max_forward_passes}"
+                )
+            if isinstance(spec, FFNCouplingSpec) and (
+                backward_required > spec.max_backward_passes
+            ):
+                warnings.append(
+                    f"requires {backward_required} backward passes but budget allows "
+                    f"{spec.max_backward_passes}"
+                )
         cached = self.models.is_cached(rank_spec.model)
         if not cached and not spec.execution.allow_download:
             warnings.append("model is not cached and downloads are disabled")
@@ -566,6 +597,7 @@ class ResearchService:
             kind=spec.kind,
             pair_count=pair_count,
             forward_passes=required,
+            backward_passes=backward_required,
             within_budget=within_budget,
             model_cached=cached,
             resolved_device=_selected_device(rank_spec.model.device),
@@ -658,6 +690,14 @@ class ResearchService:
                 diagnostic_stream=diagnostic_stream,
             )
         if isinstance(spec, TrajectorySpec):
+            return self._execute_child(
+                spec,
+                job=job,
+                listener=listener,
+                cancel=cancel,
+                diagnostic_stream=diagnostic_stream,
+            )
+        if isinstance(spec, FFNCouplingSpec):
             return self._execute_child(
                 spec,
                 job=job,
@@ -964,6 +1004,7 @@ class ResearchService:
             | AttentionHeadRankSpec
             | AttentionHeadInterventionSpec
             | AttentionTraceSpec
+            | FFNCouplingSpec
         ),
         *,
         job: JobStatus | None,
@@ -1007,6 +1048,7 @@ class ResearchService:
             check_cancelled()
             attention_summary: AttentionHeadRankRunSummary | None = None
             attention_tensors: dict[str, torch.Tensor] | None = None
+            ffn_coupling_tensors: dict[str, torch.Tensor] | None = None
             intervention_summary: AttentionHeadInterventionRunSummary | None = None
             trace_qualification_statuses: dict[str, str] | None = None
             if isinstance(spec, (AttentionHeadInterventionSpec, AttentionTraceSpec)):
@@ -1101,6 +1143,22 @@ class ResearchService:
                         spec=spec,
                         science_hash=job.science_hash,
                     )
+                elif isinstance(spec, FFNCouplingSpec):
+                    parent_tensors = load_file(
+                        self.repository.runs
+                        / spec.parent_run_id
+                        / "tensors.safetensors"
+                    )
+                    ffn_computation = run_ffn_coupling(
+                        engine=engine,
+                        parent_spec=parent_spec,
+                        parent_summary=parent_summary,
+                        parent_tensors=parent_tensors,
+                        spec=spec,
+                        science_hash=job.science_hash,
+                    )
+                    summary = ffn_computation.summary
+                    ffn_coupling_tensors = ffn_computation.tensors
                 elif isinstance(spec, InterventionSpec):
                     tensor_path = (
                         self.repository.runs
@@ -1167,6 +1225,13 @@ class ResearchService:
                     "executed model-call count does not match the preflight plan: "
                     f"planned={plan.forward_passes} actual={summary.logical_forward_passes}"
                 )
+            if isinstance(summary, FFNCouplingRunSummary) and (
+                summary.logical_backward_passes != plan.backward_passes
+            ):
+                raise RuntimeError(
+                    "executed backward-pass count does not match the preflight plan: "
+                    f"planned={plan.backward_passes} actual={summary.logical_backward_passes}"
+                )
             for warning in summary.warnings:
                 emitter.emit("warning", message=warning)
             emitter.emit(
@@ -1217,6 +1282,13 @@ class ResearchService:
                 assert isinstance(summary, TrajectoryRunSummary)
                 manifest, run_directory = self.repository.commit_trajectory(
                     **commit_arguments
+                )
+            elif isinstance(spec, FFNCouplingSpec):
+                assert isinstance(summary, FFNCouplingRunSummary)
+                assert ffn_coupling_tensors is not None
+                manifest, run_directory = self.repository.commit_ffn_coupling(
+                    **commit_arguments,
+                    tensors=ffn_coupling_tensors,
                 )
             elif isinstance(spec, InterventionSpec):
                 assert isinstance(summary, InterventionRunSummary)

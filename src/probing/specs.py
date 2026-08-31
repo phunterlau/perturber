@@ -14,6 +14,7 @@ from .contracts import (
     AttentionTraceSpec,
     DirectionInjectionSpec,
     ExperimentSpec,
+    FFNCouplingSpec,
     InterventionSpec,
     QualificationSpec,
     RankSpec,
@@ -108,6 +109,7 @@ def parse_spec_data(data: Any) -> ExperimentSpec:
     models = {
         "rank": RankSpec,
         "trajectory": TrajectorySpec,
+        "ffn_coupling": FFNCouplingSpec,
         "qualify": QualificationSpec,
         "intervention": InterventionSpec,
         "direction": DirectionInjectionSpec,

@@ -5,7 +5,7 @@ import torch
 
 from probing.adapters.base import ActivationEdit, AttentionHeadEdit, ResidualEdit
 from probing.adapters.qwen import QwenAdapter
-from probing.domain import TokenizedPrompt
+from probing.domain import ResolvedObservable, ResolvedToken, TokenizedPrompt
 
 
 class BatchLike:
@@ -173,6 +173,53 @@ def test_qwen_adapter_captures_native_residual_trajectory() -> None:
         capture.logits,
     )
     assert all(not layer._forward_pre_hooks for layer in model.model.layers)
+    assert all(not layer._forward_hooks for layer in model.model.layers)
+
+
+def test_layer_aware_coupling_matches_small_neuron_finite_difference() -> None:
+    model = TinyQwen()
+    adapter = QwenAdapter(
+        model_id="tiny/qwen3",
+        model=model,
+        tokenizer=object(),
+        device=torch.device("cpu"),
+        dtype=torch.float32,
+    )
+    input_ids = torch.tensor([[1, 2]])
+    tokenized = TokenizedPrompt(
+        text="fixture", input_ids=(1, 2), decoded_tokens=("1", "2")
+    )
+    observable = ResolvedObservable(
+        name="token-one-vs-zero",
+        target=(ResolvedToken(text="1", token_id=1, decoded="1"),),
+        control=(ResolvedToken(text="0", token_id=0, decoded="0"),),
+    )
+    baseline = adapter.forward_capture(input_ids, tokenized, -1)
+    sensitivity = adapter.forward_residual_gradients(
+        input_ids, tokenized, -1, observable
+    )
+    coupling = adapter.layer_couplings(sensitivity.gradients)[0][0]
+    epsilon = 1e-3
+    edited = adapter.forward_intervened(
+        input_ids,
+        tokenized,
+        -1,
+        (
+            ActivationEdit(
+                layer=0,
+                neurons=(0,),
+                operation="mix",
+                strength=epsilon,
+                source_values=torch.tensor([baseline.activations[0][0] + 1.0]),
+            ),
+        ),
+    )
+    baseline_gap = baseline.logits[1] - baseline.logits[0]
+    edited_gap = edited.logits[1] - edited.logits[0]
+    finite_difference = (edited_gap - baseline_gap) / epsilon
+
+    torch.testing.assert_close(coupling, finite_difference, rtol=2e-2, atol=2e-2)
+    assert all(parameter.grad is None for parameter in model.parameters())
     assert all(not layer._forward_hooks for layer in model.model.layers)
 
 

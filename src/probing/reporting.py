@@ -15,6 +15,7 @@ from .contracts import (
     NeuronCandidate,
     QueryEnvelope,
     DirectionInjectionRunSummary,
+    FFNCouplingRunSummary,
     InterventionRunSummary,
     QualificationRunSummary,
     RankRunSummary,
@@ -174,6 +175,27 @@ def build_research_report(
             (
                 "Confirm a transition band before scoping component analysis.",
                 "Test candidate states and components with matched causal interventions.",
+            )
+        )
+        claims = parsed.claims
+        limitations = parsed.warnings
+    elif manifest.run_kind == "ffn_coupling":
+        parsed = FFNCouplingRunSummary.model_validate(summary)
+        key_results.append(
+            f"Compared direct, native-local, and downstream-gradient coupling for {parsed.total_neuron_count} neurons."
+        )
+        if parsed.neurons:
+            neuron = parsed.neurons[0]
+            key_results.append(
+                f"Leading downstream-sensitive unit is L{neuron.layer}/N{neuron.neuron} "
+                f"(gradient importance RMS {neuron.downstream_importance_rms:.6g}, "
+                f"direct/gradient sign agreement {neuron.direct_downstream_sign_agreement:.3f})."
+            )
+        headline = "Observational layer-aware FFN coupling"
+        next_steps.extend(
+            (
+                "Compare top gradient-ranked neurons with same-layer random controls.",
+                "Treat direct-versus-gradient disagreement as a hypothesis about downstream transformation.",
             )
         )
         claims = parsed.claims

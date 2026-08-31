@@ -37,6 +37,14 @@ class TrajectoryForwardCapture:
 
 
 @dataclass(frozen=True)
+class ResidualGradientCapture:
+    logits: torch.Tensor
+    residuals: tuple[torch.Tensor, ...]
+    gradients: tuple[torch.Tensor, ...]
+    tokenized: TokenizedPrompt
+
+
+@dataclass(frozen=True)
 class ActivationEdit:
     layer: int
     neurons: tuple[int, ...]
@@ -190,6 +198,28 @@ class ModelAdapter(ABC):
         """Decode one residual vector with the model's native final readout."""
 
         raise NotImplementedError("the adapter does not support residual decoding")
+
+    def forward_residual_gradients(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        observable: ResolvedObservable,
+    ) -> ResidualGradientCapture:
+        raise NotImplementedError("the adapter does not support residual gradients")
+
+    def native_residual_gradient(
+        self,
+        residual: torch.Tensor,
+        observable: ResolvedObservable,
+    ) -> torch.Tensor:
+        raise NotImplementedError("the adapter does not support native residual gradients")
+
+    def layer_couplings(
+        self,
+        directions: tuple[torch.Tensor, ...],
+    ) -> tuple[torch.Tensor, ...]:
+        raise NotImplementedError("the adapter does not support layer-aware coupling")
 
     def forward_intervened(
         self,
