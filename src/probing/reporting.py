@@ -18,6 +18,7 @@ from .contracts import (
     InterventionRunSummary,
     QualificationRunSummary,
     RankRunSummary,
+    TrajectoryRunSummary,
     ReportReceipt,
     ResearchReport,
     RunOverview,
@@ -146,6 +147,33 @@ def build_research_report(
             (
                 "Run generated-behavior qualification with a predeclared evaluator.",
                 "Test ranked neurons with dose sweeps and matched random controls.",
+            )
+        )
+        claims = parsed.claims
+        limitations = parsed.warnings
+    elif manifest.run_kind == "trajectory":
+        parsed = TrajectoryRunSummary.model_validate(summary)
+        key_results.append(
+            f"Decoded {parsed.pair_count} paired trajectories with {parsed.logical_forward_passes} logical forward passes."
+        )
+        leading = [
+            (pair, pair.transitions[0])
+            for pair in parsed.pairs
+            if pair.transitions
+        ]
+        if leading:
+            pair, transition = max(
+                leading, key=lambda item: item[1].absolute_change
+            )
+            key_results.append(
+                f"Largest suggested transition is {pair.pair_id} at L{transition.layer}/{transition.checkpoint} "
+                f"(paired gap change {transition.pair_delta_change:+.6g})."
+            )
+        headline = "Observational native paired trajectory"
+        next_steps.extend(
+            (
+                "Confirm a transition band before scoping component analysis.",
+                "Test candidate states and components with matched causal interventions.",
             )
         )
         claims = parsed.claims

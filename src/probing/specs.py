@@ -17,6 +17,7 @@ from .contracts import (
     InterventionSpec,
     QualificationSpec,
     RankSpec,
+    TrajectorySpec,
 )
 
 
@@ -106,6 +107,7 @@ def parse_spec_data(data: Any) -> ExperimentSpec:
     kind = data.get("kind")
     models = {
         "rank": RankSpec,
+        "trajectory": TrajectorySpec,
         "qualify": QualificationSpec,
         "intervention": InterventionSpec,
         "direction": DirectionInjectionSpec,

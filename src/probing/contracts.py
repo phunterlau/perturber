@@ -21,6 +21,7 @@ DIRECTION_SCHEMA_VERSION = "probe.direction/v1"
 ATTENTION_RANK_SCHEMA_VERSION = "probe.attention-rank/v1"
 ATTENTION_INTERVENTION_SCHEMA_VERSION = "probe.attention-intervention/v1"
 ATTENTION_TRACE_SCHEMA_VERSION = "probe.attention-trace/v1"
+TRAJECTORY_SCHEMA_VERSION = "probe.trajectory/v1"
 EVENT_SCHEMA_VERSION = "probe.event/v1"
 MANIFEST_SCHEMA_VERSION = "probe.run/v1"
 
@@ -236,6 +237,42 @@ class RankSpec(StrictModel):
             raise ValueError("one pair must use pair_aggregation='single_pair'")
         if len(self.pairs) > 1 and self.ranking.pair_aggregation != "rms":
             raise ValueError("multiple pairs must use pair_aggregation='rms'")
+        return self
+
+
+class TrajectorySpec(StrictModel):
+    schema_version: Literal["probe.trajectory/v1"] = TRAJECTORY_SCHEMA_VERSION
+    kind: Literal["trajectory"] = "trajectory"
+    name: str = "unnamed-trajectory"
+    description: str | None = None
+    parent_run_id: str
+    pair_ids: tuple[str, ...] = ()
+    position: Literal[-1] = -1
+    checkpoints: tuple[Literal["block_input", "post_attention", "post_ffn"], ...] = (
+        "block_input",
+        "post_attention",
+        "post_ffn",
+    )
+    top_k: PositiveInt = Field(default=10, le=100)
+    transition_limit: PositiveInt = Field(default=5, le=50)
+    execution: ExecutionLimits
+    tags: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("name", "parent_run_id")
+    @classmethod
+    def validate_trajectory_identity(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("trajectory name and parent run ID must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def validate_trajectory(self) -> "TrajectorySpec":
+        if not self.checkpoints:
+            raise ValueError("trajectory requires at least one checkpoint")
+        if len(self.checkpoints) != len(set(self.checkpoints)):
+            raise ValueError("trajectory checkpoints must be unique")
+        if len(self.pair_ids) != len(set(self.pair_ids)):
+            raise ValueError("trajectory pair IDs must be unique")
         return self
 
 
@@ -711,6 +748,7 @@ class AttentionTraceSpec(StrictModel):
 
 ExperimentSpec = (
     RankSpec
+    | TrajectorySpec
     | QualificationSpec
     | InterventionSpec
     | DirectionInjectionSpec
@@ -809,6 +847,7 @@ class ExperimentPlan(StrictModel):
     request_hash: str
     kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",
@@ -906,6 +945,7 @@ class ResearchCaseStage(StrictModel):
     key: str = Field(pattern=r"^[a-z][a-z0-9-]{0,127}$")
     kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",
@@ -970,6 +1010,7 @@ class ExecutionReceipt(StrictModel):
     run_id: str
     run_kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",
@@ -1063,6 +1104,60 @@ class RankRunSummary(StrictModel):
     ffn_skip_mean: float | None
     evidence_stage: Literal["exploratory_pair", "replicated_ranking"]
     qualification: QualificationAggregate | None = None
+    claims: tuple[ClaimRecord, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+
+class TrajectoryCheckpointSummary(StrictModel):
+    layer: int = Field(ge=0)
+    checkpoint: Literal["block_input", "post_attention", "post_ffn"]
+    original_gap: float
+    perturbed_gap: float
+    pair_delta: float
+    original_target_probability: float = Field(ge=0, le=1)
+    perturbed_target_probability: float = Field(ge=0, le=1)
+    original_control_probability: float = Field(ge=0, le=1)
+    perturbed_control_probability: float = Field(ge=0, le=1)
+    original_entropy: float = Field(ge=0)
+    perturbed_entropy: float = Field(ge=0)
+    original_target_rank: PositiveInt
+    perturbed_target_rank: PositiveInt
+    original_forward_kl_to_final: float = Field(ge=0)
+    perturbed_forward_kl_to_final: float = Field(ge=0)
+    paired_js: float = Field(ge=0)
+    paired_total_variation: float = Field(ge=0, le=1)
+
+
+class TrajectoryTransitionSuggestion(StrictModel):
+    rank: PositiveInt
+    layer: int = Field(ge=0)
+    checkpoint: Literal["block_input", "post_attention", "post_ffn"]
+    pair_delta_change: float
+    absolute_change: float = Field(ge=0)
+    reason: Literal["largest_pair_delta_change"] = "largest_pair_delta_change"
+
+
+class PairTrajectorySummary(StrictModel):
+    pair_id: str
+    split: Literal["discovery", "validation", "heldout"] = "discovery"
+    checkpoints: tuple[TrajectoryCheckpointSummary, ...]
+    transitions: tuple[TrajectoryTransitionSuggestion, ...]
+    final_pair_delta: float
+    warnings: tuple[str, ...] = ()
+
+
+class TrajectoryRunSummary(StrictModel):
+    schema_version: Literal["probe.trajectory-result/v1"] = (
+        "probe.trajectory-result/v1"
+    )
+    science_hash: str
+    parent_run_id: str
+    model: dict[str, Any]
+    observable: dict[str, Any]
+    pair_count: PositiveInt
+    logical_forward_passes: PositiveInt
+    pairs: tuple[PairTrajectorySummary, ...]
+    evidence_stage: Literal["observational_trajectory"] = "observational_trajectory"
     claims: tuple[ClaimRecord, ...] = ()
     warnings: tuple[str, ...] = ()
 
@@ -1678,6 +1773,7 @@ class ReplayRecordReceipt(StrictModel):
 class WorkflowStageOutcome(StrictModel):
     kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",
@@ -1720,6 +1816,7 @@ class ResearchReport(StrictModel):
     run_id: str
     run_kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",
@@ -1802,6 +1899,7 @@ class RunManifest(StrictModel):
     evidence_stage: Literal[
         "exploratory_pair",
         "replicated_ranking",
+        "observational_trajectory",
         "qualified_observable",
         "causal_intervention",
         "attention_hypothesis",
@@ -1811,6 +1909,7 @@ class RunManifest(StrictModel):
     ]
     run_kind: Literal[
         "rank",
+        "trajectory",
         "qualify",
         "intervention",
         "direction",

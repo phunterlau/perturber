@@ -37,6 +37,8 @@ from .contracts import (
     QualificationSpec,
     RankSpec,
     RunManifest,
+    TrajectoryRunSummary,
+    TrajectorySpec,
 )
 from .domain import ProbeResult
 from .errors import ArtifactError
@@ -415,6 +417,51 @@ class ArtifactRepository:
             max_artifact_bytes=max_artifact_bytes,
         )
 
+    def commit_trajectory(
+        self,
+        *,
+        job_id: str,
+        request_id: str,
+        spec: TrajectorySpec,
+        summary: TrajectoryRunSummary,
+        requested_model: Any,
+        resolved_model: dict[str, Any],
+        science_hash: str,
+        run_fingerprint: str,
+        algorithm_version: str,
+        created_at: datetime,
+        max_artifact_bytes: int,
+    ) -> tuple[RunManifest, Path]:
+        rows = [
+            {
+                "pair_id": pair.pair_id,
+                "split": pair.split,
+                **checkpoint.model_dump(mode="json"),
+            }
+            for pair in summary.pairs
+            for checkpoint in pair.checkpoints
+        ]
+        return self._commit_child_run(
+            job_id=job_id,
+            request_id=request_id,
+            spec=spec,
+            summary=summary,
+            requested_model=requested_model,
+            resolved_model=resolved_model,
+            science_hash=science_hash,
+            run_fingerprint=run_fingerprint,
+            algorithm_version=algorithm_version,
+            created_at=created_at,
+            evidence_stage="observational_trajectory",
+            run_kind="trajectory",
+            parent_run_ids=(spec.parent_run_id,),
+            pair_count=len(summary.pairs),
+            detail_name="trajectory-checkpoints.jsonl",
+            detail_rows=rows,
+            warnings=summary.warnings,
+            max_artifact_bytes=max_artifact_bytes,
+        )
+
     def commit_attention_rank(
         self,
         *,
@@ -693,6 +740,7 @@ class ArtifactRepository:
         request_id: str,
         spec: (
             QualificationSpec
+            | TrajectorySpec
             | InterventionSpec
             | DirectionInjectionSpec
             | AttentionHeadInterventionSpec
@@ -700,6 +748,7 @@ class ArtifactRepository:
         ),
         summary: (
             QualificationRunSummary
+            | TrajectoryRunSummary
             | InterventionRunSummary
             | DirectionInjectionRunSummary
             | AttentionHeadInterventionRunSummary

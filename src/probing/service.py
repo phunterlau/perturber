@@ -39,6 +39,8 @@ from .contracts import (
     RankSpec,
     PreflightReport,
     RunManifest,
+    TrajectoryRunSummary,
+    TrajectorySpec,
 )
 from .domain import (
     ALGORITHM_VERSION,
@@ -67,6 +69,7 @@ from .attention import (
 from .attention_trace import attention_trace_plan_counts, run_attention_trace
 from .direction import direction_plan_counts, run_direction_injection
 from .qualification_workflow import run_qualification
+from .trajectory import run_trajectory, trajectory_plan_counts
 from .reproducibility import seed_everything
 from .specs import hash_value, request_hash, science_hash
 
@@ -86,6 +89,7 @@ class ExecutionOutcome:
         | AttentionHeadRankRunSummary
         | AttentionHeadInterventionRunSummary
         | AttentionTraceRunSummary
+        | TrajectoryRunSummary
     )
 
 
@@ -164,9 +168,11 @@ class ResearchService:
         self,
         spec: (
             QualificationSpec
+            | TrajectorySpec
             | InterventionSpec
             | DirectionInjectionSpec
             | AttentionHeadRankSpec
+            | TrajectorySpec
         ),
     ) -> tuple[RunManifest, RankSpec, RankRunSummary]:
         manifest = self.repository.load_manifest(spec.parent_run_id)
@@ -263,7 +269,13 @@ class ResearchService:
             return spec
         if isinstance(
             spec,
-            (QualificationSpec, InterventionSpec, DirectionInjectionSpec, AttentionHeadRankSpec),
+            (
+                QualificationSpec,
+                InterventionSpec,
+                DirectionInjectionSpec,
+                AttentionHeadRankSpec,
+                TrajectorySpec,
+            ),
         ):
             return self._parent_rank(spec)[1]
         _manifest, attention_spec, _summary = self._parent_attention_rank(spec)
@@ -354,6 +366,10 @@ class ResearchService:
         if isinstance(spec, RankSpec):
             limitations.append(
                 "Ranking is observational until qualified, replicated, and intervention-tested."
+            )
+        elif isinstance(spec, TrajectorySpec):
+            limitations.append(
+                "Native trajectory values measure intermediate decodability, not causal use."
             )
         elif isinstance(spec, QualificationSpec):
             limitations.append(
@@ -448,6 +464,14 @@ class ResearchService:
         if isinstance(spec, RankSpec):
             pair_count = len(spec.pairs)
             required = 2 * pair_count
+        elif isinstance(spec, TrajectorySpec):
+            _manifest, _parent_spec, parent_summary = self._parent_rank(spec)
+            try:
+                pair_count, required = trajectory_plan_counts(
+                    parent_summary=parent_summary, spec=spec
+                )
+            except ValueError as exc:
+                raise CapabilityError(str(exc)) from exc
         elif isinstance(spec, QualificationSpec):
             _manifest, _parent_spec, parent_summary = self._parent_rank(spec)
             available = {item.pair_id for item in parent_summary.pairs}
@@ -627,6 +651,14 @@ class ResearchService:
     ) -> ExecutionOutcome:
         if isinstance(spec, QualificationSpec):
             return self._execute_qualification(
+                spec,
+                job=job,
+                listener=listener,
+                cancel=cancel,
+                diagnostic_stream=diagnostic_stream,
+            )
+        if isinstance(spec, TrajectorySpec):
+            return self._execute_child(
                 spec,
                 job=job,
                 listener=listener,
@@ -1061,6 +1093,14 @@ class ResearchService:
                         spec=spec,
                         science_hash=job.science_hash,
                     )
+                elif isinstance(spec, TrajectorySpec):
+                    summary = run_trajectory(
+                        engine=engine,
+                        parent_spec=parent_spec,
+                        parent_summary=parent_summary,
+                        spec=spec,
+                        science_hash=job.science_hash,
+                    )
                 elif isinstance(spec, InterventionSpec):
                     tensor_path = (
                         self.repository.runs
@@ -1171,6 +1211,11 @@ class ResearchService:
             if isinstance(spec, QualificationSpec):
                 assert isinstance(summary, QualificationRunSummary)
                 manifest, run_directory = self.repository.commit_qualification(
+                    **commit_arguments
+                )
+            elif isinstance(spec, TrajectorySpec):
+                assert isinstance(summary, TrajectoryRunSummary)
+                manifest, run_directory = self.repository.commit_trajectory(
                     **commit_arguments
                 )
             elif isinstance(spec, InterventionSpec):

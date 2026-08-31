@@ -30,6 +30,7 @@ from .contracts import (
     RankSpec,
     ResearchWorkflowSpec,
     RunManifest,
+    TrajectorySpec,
 )
 from .errors import EndpointError, ProbeError, SpecError
 from .legacy import DEFAULT_MODEL, PROJECT_DIRECTORY, main as legacy_main
@@ -219,6 +220,7 @@ def schema_list() -> None:
         {
             "schemas": [
                 "rank",
+                "trajectory",
                 "qualification",
                 "intervention",
                 "direction",
@@ -250,6 +252,7 @@ def schema_list() -> None:
                 "execution-receipt",
                 "capabilities",
                 "result",
+                "trajectory-result",
                 "overview",
                 "query",
                 "verification",
@@ -309,6 +312,8 @@ def schema_show(name: str) -> None:
         ReplayReport,
         RunOverview,
         RunManifest,
+        TrajectoryRunSummary,
+        TrajectorySpec,
         SensitivityReport,
         StabilityReport,
         VerificationReport,
@@ -316,6 +321,7 @@ def schema_show(name: str) -> None:
 
     schemas = {
         "rank": RankSpec,
+        "trajectory": TrajectorySpec,
         "qualification": QualificationSpec,
         "intervention": InterventionSpec,
         "direction": DirectionInjectionSpec,
@@ -328,6 +334,7 @@ def schema_show(name: str) -> None:
         "attention-rank-result": AttentionHeadRankRunSummary,
         "attention-intervention-result": AttentionHeadInterventionRunSummary,
         "attention-trace-result": AttentionTraceRunSummary,
+        "trajectory-result": TrajectoryRunSummary,
         "experiment-set": ExperimentSet,
         "perturbation-template": PerturbationTemplate,
         "perturbation-compilation": PerturbationCompilation,

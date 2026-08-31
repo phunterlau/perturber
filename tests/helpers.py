@@ -9,8 +9,10 @@ from probing.adapters.base import (
     AttentionMetadata,
     ForwardCapture,
     GeneratedSequence,
+    LayerResidualCheckpoints,
     ModelAdapter,
     ResidualEdit,
+    TrajectoryForwardCapture,
 )
 from probing.domain import (
     ModelMetadata,
@@ -105,6 +107,40 @@ class FakeAdapter(ModelAdapter):
         direction: torch.Tensor,
     ) -> tuple[torch.Tensor, ...]:
         return (torch.tensor([2.0, -1.0]),)
+
+    def forward_trajectory_capture(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+    ) -> TrajectoryForwardCapture:
+        baseline = self.forward_capture(input_ids, tokenized, capture_position)
+        perturbed = bool(int(input_ids[0, 0]))
+        block_input = (
+            torch.tensor([1.8, 0.2, -1.0])
+            if perturbed
+            else torch.tensor([0.3, 1.4, -1.0])
+        )
+        post_attention = (
+            torch.tensor([2.4, 0.1, -1.0])
+            if perturbed
+            else torch.tensor([0.2, 1.8, -1.0])
+        )
+        return TrajectoryForwardCapture(
+            logits=baseline.logits,
+            checkpoints=(
+                LayerResidualCheckpoints(
+                    layer=0,
+                    block_input=block_input,
+                    post_attention=post_attention,
+                    post_ffn=baseline.logits,
+                ),
+            ),
+            tokenized=tokenized,
+        )
+
+    def decode_residual(self, residual: torch.Tensor) -> torch.Tensor:
+        return residual.detach().float().cpu()
 
     @staticmethod
     def _edited_activation(
