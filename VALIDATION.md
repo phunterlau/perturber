@@ -1,6 +1,6 @@
 # Validation record
 
-Validated through 2026-08-10 (America/Los_Angeles).
+Validated through 2026-08-30 (America/Los_Angeles).
 
 ## Environment
 
@@ -27,9 +27,12 @@ uv run --locked python -m compileall -q src tests
 cd web && npm run typecheck && npm run build
 ```
 
-Current result: `117 passed`; compile and TypeScript checks passed. The production React
-build completed, with a non-fatal Vite size warning for the 1.29 MB minified
-Plotly-containing JavaScript bundle (424 KB gzip).
+Current result: `131 passed`; compile, five frontend unit tests, and TypeScript
+checks passed. The production React build completed, with a non-fatal Vite size
+warning for the 1.43 MB minified Plotly-containing JavaScript bundle (466 KB
+gzip). `npm install` reports two transitive audit findings (one moderate and one
+critical); no forced dependency upgrade was applied during scientific feature
+validation.
 
 The host's older `uv 0.4.20` emits two pathless `Failed to read metadata for
 file` warnings during its pre-run editable-project audit. Reinstalling the
@@ -93,6 +96,37 @@ Coverage includes:
 - qualification-gated output-head ranking/intervention, conservative weak-pair
   claims, exact call budgets, symbolic attention workflow lineage, explicit
   full-token alignment, endpoint-population enforcement, and matched path controls.
+- native block-input/post-attention/post-FFN capture, exact final-checkpoint
+  decoder equality, hook cleanup, paired distribution diagnostics, and immutable
+  trajectory artifacts;
+- native-local and true downstream endpoint gradients without parameter-gradient
+  mutation, explicit backward-pass budgets, symbolic trajectory lineage, and a
+  finite-difference neuron-injection check on a real tiny Qwen model;
+- checked-in trajectory/coupling workflow parsing, including quoted
+  boolean-like observable tokens, two exact normalized MPS replays, and verified
+  three-stage lineage.
+
+## Live native trajectory and layer-aware FFN coupling
+
+The checked-in capital workflow ran twice with the pinned Qwen3-0.6B revision,
+MPS/float16, seed `260427401`, and downloads disabled:
+
+```bash
+uv run --locked probe workflow \
+  --driver examples/workflows/capital-trajectory-coupling.yaml \
+  --events jsonl
+```
+
+Primary runs `20260831T031736-698d99413e3d`,
+`20260831T031737-cd062577066c`, and
+`20260831T031738-fc30a98b5cb8` all passed artifact verification. The replay
+created a new immutable lineage but reproduced all normalized summary values
+exactly. The largest trajectory changes were L27 post-FFN `+0.265625`, L18
+post-FFN `+0.2265625`, and L21 post-FFN `+0.1953125`. Downstream-gradient
+candidates began with L21:n1341, L18:n1784, and L27:n840; downstream layer RMS
+mass peaked at L17, L18, and L16. These are reproducible observational
+hypotheses, not causal localization. Full bounded results and commands are in
+[`examples/workflows/capital-trajectory-coupling-reports/`](examples/workflows/capital-trajectory-coupling-reports/).
 
 A wheel and source distribution were built in
 `/private/tmp/probe-attention-final-build` using an isolated temporary uv cache.

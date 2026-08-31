@@ -22,8 +22,8 @@ rank:
         perturbation_family: agreement-premise
   observable:
     name: agreement:no-minus-yes
-    target_tokens: [No]
-    control_tokens: [Yes]
+    target_tokens: ["No"]
+    control_tokens: ["Yes"]
   ranking:
     top_k: 500
     pair_aggregation: single_pair

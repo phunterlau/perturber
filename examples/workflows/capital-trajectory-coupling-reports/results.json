@@ -1,0 +1,74 @@
+{
+  "schema_version": "probe.example-analysis/v1",
+  "driver": "../capital-trajectory-coupling.yaml",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "device": "mps",
+    "dtype": "float16"
+  },
+  "seed": 260427401,
+  "primary_runs": {
+    "rank": "20260831T031736-698d99413e3d",
+    "trajectory": "20260831T031737-cd062577066c",
+    "ffn_coupling": "20260831T031738-fc30a98b5cb8"
+  },
+  "independent_replay_runs": {
+    "rank": "20260831T031903-698d99413e3d",
+    "trajectory": "20260831T031904-40e683daf682",
+    "ffn_coupling": "20260831T031905-a1b1c2f9e63b"
+  },
+  "verification": {
+    "primary_artifacts_valid": true,
+    "normalized_summaries_exactly_equal_on_replay": true,
+    "normalization_excluded": [
+      "run lineage identifiers",
+      "science hashes containing lineage",
+      "rank elapsed_seconds"
+    ]
+  },
+  "rank": {
+    "measured_delta": 0.625,
+    "predicted_delta": 0.2889440953731537,
+    "ffn_skip": 0.502674393666878,
+    "evidence_stage": "exploratory_pair"
+  },
+  "trajectory": {
+    "final_pair_delta": 0.625,
+    "peak_paired_js": 0.0074304211884737015,
+    "peak_paired_total_variation": 0.11802738159894943,
+    "largest_transitions": [
+      {"rank": 1, "layer": 27, "checkpoint": "post_ffn", "pair_delta_change": 0.265625},
+      {"rank": 2, "layer": 18, "checkpoint": "post_ffn", "pair_delta_change": 0.2265625},
+      {"rank": 3, "layer": 21, "checkpoint": "post_ffn", "pair_delta_change": 0.1953125},
+      {"rank": 4, "layer": 17, "checkpoint": "post_attention", "pair_delta_change": 0.17578125},
+      {"rank": 5, "layer": 23, "checkpoint": "post_ffn", "pair_delta_change": -0.15625}
+    ]
+  },
+  "ffn_coupling": {
+    "logical_forward_passes": 2,
+    "logical_backward_passes": 2,
+    "original_gradient_norm_mean": 1.3399283194116183,
+    "perturbed_gradient_norm_mean": 1.3664859810045786,
+    "direct_downstream_sign_agreement": {
+      "top_10": 1.0,
+      "top_100": 0.7,
+      "top_500": 0.652
+    },
+    "top_downstream_neurons": [
+      {"rank": 1, "layer": 21, "neuron": 1341, "downstream_importance": 0.07999957352876663, "direct_importance_rms": 0.16300685703754425},
+      {"rank": 2, "layer": 18, "neuron": 1784, "downstream_importance": 0.07352548092603683, "direct_importance_rms": 0.323264479637146},
+      {"rank": 3, "layer": 27, "neuron": 840, "downstream_importance": -0.052596718072891235, "direct_importance_rms": 0.1474263221025467},
+      {"rank": 4, "layer": 19, "neuron": 826, "downstream_importance": 0.04165240749716759, "direct_importance_rms": 0.027503609657287598},
+      {"rank": 5, "layer": 25, "neuron": 1665, "downstream_importance": -0.03961062803864479, "direct_importance_rms": 0.14040996134281158}
+    ],
+    "top_downstream_layers": [
+      {"layer": 17, "rms_mass": 1.5502986907958984},
+      {"layer": 18, "rms_mass": 1.4993908405303955},
+      {"layer": 16, "rms_mass": 1.3281755447387695},
+      {"layer": 19, "rms_mass": 1.24284827709198},
+      {"layer": 15, "rms_mass": 1.1351970434188843}
+    ]
+  },
+  "claim_status": "observational_hypothesis"
+}

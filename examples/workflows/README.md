@@ -20,6 +20,9 @@ forward/backward sensitivity passes. The trajectory is observational, and the
 direct/native/downstream coupling comparison remains a candidate ranking until
 controlled intervention.
 
+Measured Qwen3-0.6B MPS results and exact replay conclusions are checked in at
+[`capital-trajectory-coupling-reports/`](capital-trajectory-coupling-reports/).
+
 The language driver pins the Qwen3-0.6B model revision, MPS/float16 execution,
 all generation settings, and separate seeds for ranking, qualification,
 ablation controls, and random residual directions:

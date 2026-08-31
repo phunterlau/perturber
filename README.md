@@ -19,6 +19,10 @@ that need a reproducible, machine-readable research workflow.
 - Compare controlled prompt pairs across discovery, validation, and held-out
   splits.
 - Rank FFN layers and neurons using signed perturbation importance.
+- Decode native paired residual trajectories to find where a prediction
+  difference emerges across attention and FFN checkpoints.
+- Re-rank FFN candidates with native local and downstream endpoint gradients,
+  rather than assuming one layer-independent output coupling.
 - Test neurons with ablation, amplification, patching, dose sweeps, and random
   controls.
 - Rank attention heads and inspect token-to-head routes.
@@ -129,6 +133,16 @@ uv run --locked probe workflow \
   --driver examples/workflows/language-attention-path.yaml \
   --events jsonl
 ```
+
+For the smallest trajectory-guided FFN workflow and its checked-in result:
+
+```bash
+uv run --locked probe workflow \
+  --driver examples/workflows/capital-trajectory-coupling.yaml \
+  --events jsonl
+```
+
+See [the capital trajectory/coupling report](examples/workflows/capital-trajectory-coupling-reports/analysis.md).
 
 Agents should read [RESEARCH.md](RESEARCH.md) before operating the tool or
 interpreting results. A Research Case can also export a bounded research packet

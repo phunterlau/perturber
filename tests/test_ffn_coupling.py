@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from probing.contracts import FFNCouplingSpec, ResearchWorkflowSpec, TrajectorySpec
 from probing.reporting import build_research_report
-from probing.specs import parse_spec_data
+from probing.specs import load_document, parse_spec_data
 from probing.workflow import run_workflow
 from test_service import fake_rank_spec, make_service
 
@@ -116,3 +118,14 @@ def test_workflow_resolves_trajectory_and_coupling_lineage(tmp_path) -> None:
         outcome.rank_run_id,
         outcome.trajectory_run_id,
     )
+
+
+def test_checked_in_capital_workflow_preserves_boolean_like_tokens() -> None:
+    driver = Path(__file__).parents[1] / "examples/workflows/capital-trajectory-coupling.yaml"
+
+    workflow = ResearchWorkflowSpec.model_validate(load_document(driver))
+
+    assert workflow.rank.observable.target_tokens == ("No",)
+    assert workflow.rank.observable.control_tokens == ("Yes",)
+    assert workflow.ffn_coupling is not None
+    assert workflow.ffn_coupling.trajectory_run_id == "$trajectory"
