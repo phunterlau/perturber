@@ -51,6 +51,8 @@ export type ResearchWorkflow = {
   description?: string | null;
   rank: RankSpec;
   qualification?: ExperimentSpec | null;
+  trajectory?: ExperimentSpec | null;
+  ffn_coupling?: ExperimentSpec | null;
   interventions?: ExperimentSpec[];
   directions?: ExperimentSpec[];
   attention_rank?: ExperimentSpec | null;
@@ -131,6 +133,78 @@ export type QualificationSummary = {
   logical_forward_passes: number;
   aggregate: { informative_pairs: number; weak_pairs: number; invalid_pairs: number; claim_eligible: boolean };
   pairs: Array<{ pair_id: string; split: Split; status: string; reasons: string[] }>;
+  claims: Claim[];
+  warnings: string[];
+};
+
+export type TrajectoryCheckpoint = {
+  layer: number;
+  checkpoint: "block_input" | "post_attention" | "post_ffn";
+  original_gap: number;
+  perturbed_gap: number;
+  pair_delta: number;
+  original_target_probability: number;
+  perturbed_target_probability: number;
+  original_control_probability: number;
+  perturbed_control_probability: number;
+  original_entropy: number;
+  perturbed_entropy: number;
+  original_target_rank: number;
+  perturbed_target_rank: number;
+  original_forward_kl_to_final: number;
+  perturbed_forward_kl_to_final: number;
+  paired_js: number;
+  paired_total_variation: number;
+};
+
+export type TrajectorySummary = {
+  schema_version: "probe.trajectory-result/v1";
+  parent_run_id: string;
+  pair_count: number;
+  logical_forward_passes: number;
+  pairs: Array<{
+    pair_id: string;
+    split: Split;
+    checkpoints: TrajectoryCheckpoint[];
+    transitions: Array<{ rank: number; layer: number; checkpoint: TrajectoryCheckpoint["checkpoint"]; pair_delta_change: number; absolute_change: number }>;
+    final_pair_delta: number;
+    warnings: string[];
+  }>;
+  evidence_stage: "observational_trajectory";
+  claims: Claim[];
+  warnings: string[];
+};
+
+export type FFNCouplingNeuron = {
+  rank: number;
+  layer: number;
+  neuron: number;
+  activation_delta_mean: number;
+  direct_coupling: number;
+  direct_importance_rms: number;
+  native_coupling_mean: number | null;
+  native_importance_mean: number | null;
+  native_importance_rms: number | null;
+  downstream_coupling_mean: number;
+  downstream_importance_mean: number;
+  downstream_importance_rms: number;
+  downstream_sign_consistency: number;
+  direct_downstream_sign_agreement: number;
+};
+
+export type FFNCouplingSummary = {
+  schema_version: "probe.ffn-coupling-result/v1";
+  parent_run_id: string;
+  trajectory_run_id: string | null;
+  pair_count: number;
+  logical_forward_passes: number;
+  logical_backward_passes: number;
+  methods: string[];
+  pairs: Array<{ pair_id: string; split: Split; original_gradient_norm_mean: number; perturbed_gradient_norm_mean: number }>;
+  layers: Array<{ layer: number; downstream_rms_mass: number; native_rms_mass: number | null; direct_rms_mass: number; top_neuron: number }>;
+  neurons: FFNCouplingNeuron[];
+  total_neuron_count: number;
+  evidence_stage: "observational_ffn_coupling";
   claims: Claim[];
   warnings: string[];
 };
@@ -249,6 +323,8 @@ export type AttentionTraceSummary = {
 export type EvidenceSummary =
   | RankSummary
   | QualificationSummary
+  | TrajectorySummary
+  | FFNCouplingSummary
   | InterventionSummary
   | DirectionSummary
   | AttentionRankSummary
@@ -256,6 +332,8 @@ export type EvidenceSummary =
   | AttentionTraceSummary;
 
 export const isRankSummary = (value: EvidenceSummary): value is RankSummary => value.schema_version === "probe.rank-result/v1";
+export const isTrajectorySummary = (value: EvidenceSummary): value is TrajectorySummary => value.schema_version === "probe.trajectory-result/v1";
+export const isFFNCouplingSummary = (value: EvidenceSummary): value is FFNCouplingSummary => value.schema_version === "probe.ffn-coupling-result/v1";
 export const isInterventionSummary = (value: EvidenceSummary): value is InterventionSummary => value.schema_version === "probe.intervention-result/v1";
 export const isDirectionSummary = (value: EvidenceSummary): value is DirectionSummary => value.schema_version === "probe.direction-result/v1";
 export const isAttentionRankSummary = (value: EvidenceSummary): value is AttentionRankSummary => value.schema_version === "probe.attention-rank-result/v1";
@@ -335,5 +413,5 @@ export type RunManifest = {
   warnings: string[];
   parent_run_ids: string[];
   artifacts: Array<{ path: string; media_type: string; sha256: string; size_bytes: number }>;
-  run_kind: "rank" | "qualify" | "intervention" | "direction" | "attention_rank" | "attention_intervention" | "attention_trace";
+  run_kind: "rank" | "trajectory" | "ffn_coupling" | "qualify" | "intervention" | "direction" | "attention_rank" | "attention_intervention" | "attention_trace";
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AttentionTraceSummary, ResearchCase, ResearchCaseStage } from "./types";
+import type { AttentionTraceSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
 import {
   controlledDose,
   defaultAttentionWorkflow,
@@ -7,6 +7,7 @@ import {
   parseWorkflowYaml,
   serializeWorkflowYaml,
   strongestSelectedPath,
+  trajectoryRows,
 } from "./research";
 
 const stage = (key: string, status: ResearchCaseStage["status"], traceKind?: "head_paths"): ResearchCaseStage => ({
@@ -70,5 +71,18 @@ describe("research workbench view models", () => {
     blocked.stages[0] = stage("qualification", "gate_failed");
     expect(isCausalPath(blocked, summary)).toBe(false);
     expect(isCausalPath(caseValue(), { ...summary, parent_intervention_run_id: null })).toBe(false);
+  });
+
+  it("adds trajectory and layer-aware coupling stages to the canonical template", () => {
+    const workflow = defaultAttentionWorkflow();
+    expect(workflow.trajectory?.parent_run_id).toBe("$rank");
+    expect(workflow.ffn_coupling?.trajectory_run_id).toBe("$trajectory");
+  });
+
+  it("prepares ordered native checkpoint rows for a selected pair", () => {
+    const checkpoint = (layer: number, name: "block_input" | "post_attention" | "post_ffn", pairDelta: number) => ({ layer, checkpoint: name, original_gap: 1, perturbed_gap: 1 + pairDelta, pair_delta: pairDelta, original_target_probability: .2, perturbed_target_probability: .3, original_control_probability: .1, perturbed_control_probability: .1, original_entropy: 2, perturbed_entropy: 2, original_target_rank: 4, perturbed_target_rank: 3, original_forward_kl_to_final: .1, perturbed_forward_kl_to_final: .1, paired_js: .01, paired_total_variation: .1 });
+    const summary = { schema_version: "probe.trajectory-result/v1", parent_run_id: "rank", pair_count: 1, logical_forward_passes: 2, pairs: [{ pair_id: "capital", split: "discovery", checkpoints: [checkpoint(0, "block_input", .1), checkpoint(0, "post_attention", .2), checkpoint(0, "post_ffn", .3)], transitions: [], final_pair_delta: .3, warnings: [] }], evidence_stage: "observational_trajectory", claims: [], warnings: [] } satisfies TrajectorySummary;
+    expect(trajectoryRows(summary, "capital").map((item) => item.label)).toEqual(["L0 input", "L0 attention", "L0 FFN"]);
+    expect(trajectoryRows(summary, "missing")[2].pair_delta).toBe(.3);
   });
 });

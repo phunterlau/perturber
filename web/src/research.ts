@@ -6,6 +6,8 @@ import type {
   ResearchCase,
   ResearchIntent,
   ResearchWorkflow,
+  TrajectoryCheckpoint,
+  TrajectorySummary,
 } from "./types";
 import { parse, stringify } from "yaml";
 
@@ -56,6 +58,14 @@ export function defaultAttentionWorkflow(): ResearchWorkflow {
     qualification: {
       schema_version: "probe.qualify/v1", kind: "qualify", name: "language-generation-gate", parent_run_id: "$rank",
       generation: { max_new_tokens: 8, do_sample: false, seed: 260427401 }, evaluator: { kind: "unicode_script", target_values: ["han"], control_values: ["latin"] }, execution: execution(6, 10_000_000),
+    },
+    trajectory: {
+      schema_version: "probe.trajectory/v1", kind: "trajectory", name: "language-native-trajectory", parent_run_id: "$rank",
+      checkpoints: ["block_input", "post_attention", "post_ffn"], top_k: 10, transition_limit: 8, execution: execution(6, 50_000_000),
+    },
+    ffn_coupling: {
+      schema_version: "probe.ffn-coupling/v1", kind: "ffn_coupling", name: "language-layer-aware-ffn", parent_run_id: "$rank", trajectory_run_id: "$trajectory",
+      methods: ["native_local_readout", "downstream_endpoint_gradient"], top_k: 500, max_backward_passes: 6, execution: execution(6, 100_000_000),
     },
     interventions: [{
       schema_version: "probe.intervention/v1", kind: "intervention", name: "top-neuron-patch", parent_run_id: "$rank", qualification_run_id: "$qualification",
@@ -108,8 +118,22 @@ export function serializeWorkflowYaml(workflow: ResearchWorkflow): string {
 export const stageTitle = (key: string): string => ({
   rank: "Rank",
   qualification: "Behavioral qualification",
+  trajectory: "Paired trajectory",
+  "ffn-coupling": "Layer-aware FFN coupling",
   "attention-rank": "Head ranking",
 }[key] ?? key.replaceAll("-", " "));
+
+export const checkpointLabel = (checkpoint: TrajectoryCheckpoint["checkpoint"]): string => ({
+  block_input: "input",
+  post_attention: "attention",
+  post_ffn: "FFN",
+})[checkpoint];
+
+export function trajectoryRows(summary: TrajectorySummary, pairId: string): Array<TrajectoryCheckpoint & { x: number; label: string }> {
+  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  if (!pair) return [];
+  return pair.checkpoints.map((item, index) => ({ ...item, x: index, label: `L${item.layer} ${checkpointLabel(item.checkpoint)}` }));
+}
 
 export function controlledDose(dose: Dose): number {
   return dose.controlled_absolute_effect ?? dose.selected_absolute_effect_mean - (dose.random_absolute_effect_mean ?? 0);

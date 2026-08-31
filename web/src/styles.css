@@ -107,7 +107,11 @@ td { padding: 8px 7px; border-top: 1px solid #e1e8ea; color: #40565f; }
 .case-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: #71858e; padding: 12px 1px; font: 600 10px IBM Plex Mono, monospace; letter-spacing: .09em; text-transform: uppercase; }
 .case-tabs button.active { color: #17252b; border-bottom-color: #0e9b8d; }
 .case-workspace { padding-top: 16px; }
-.define-layout, .circuit-stack, .attention-stack { display: grid; gap: 10px; }
+.define-layout, .circuit-stack, .attention-stack, .trajectory-stack { display: grid; gap: 10px; }
+.trajectory-transitions { display: grid; gap: 7px; margin-top: 12px; }
+.trajectory-transitions article { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); background: var(--paper); }
+.trajectory-transitions span { color: var(--muted); font: 11px var(--mono); }
+.trajectory-transitions b { color: var(--teal); font: 12px var(--mono); }
 .section-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .section-heading > div { display: flex; gap: 10px; align-items: center; }
 .section-heading span { color: #91a3aa; font: 700 9px IBM Plex Mono, monospace; }

@@ -23,8 +23,10 @@ import {
   isAttentionRankSummary,
   isAttentionTraceSummary,
   isDirectionSummary,
+  isFFNCouplingSummary,
   isInterventionSummary,
   isRankSummary,
+  isTrajectorySummary,
 } from "./types";
 import type {
   AttentionHead,
@@ -34,6 +36,7 @@ import type {
   DirectionSummary,
   Dose,
   EvidenceSummary,
+  FFNCouplingSummary,
   JobEvent,
   RankSpec,
   RankSummary,
@@ -43,6 +46,7 @@ import type {
   ResearchWorkflow,
   RunManifest,
   Split,
+  TrajectorySummary,
 } from "./types";
 import {
   controlledDose,
@@ -53,6 +57,7 @@ import {
   serializeWorkflowYaml,
   stageTitle,
   strongestSelectedPath,
+  trajectoryRows,
   workflowFromQuick,
 } from "./research";
 
@@ -150,7 +155,7 @@ function ResearchWorkbench({ setStatus }: { setStatus: (value: string) => void }
   const [workflow, setWorkflow] = useState<ResearchWorkflow>(defaultAttentionWorkflow());
   const [yamlText, setYamlText] = useState("");
   const [advanced, setAdvanced] = useState(false);
-  const [view, setView] = useState<"define" | "evidence" | "ffn" | "attention" | "provenance">("define");
+  const [view, setView] = useState<"define" | "evidence" | "trajectory" | "ffn" | "attention" | "provenance">("define");
   const [plan, setPlan] = useState<ResearchCasePlan | null>(null);
   const [summaries, setSummaries] = useState<Record<string, EvidenceSummary>>({});
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
@@ -215,11 +220,12 @@ function ResearchWorkbench({ setStatus }: { setStatus: (value: string) => void }
       {!active ? <Empty>Create a guided research case from the Qwen attention-path template.</Empty> : <>
         <div className="case-hero"><div><span className={`evidence-badge ${active.evidence_label}`}>{label(active.evidence_label)}</span><h2>{active.workflow.name}</h2><p>{active.intent.hypothesis}</p></div><div className="case-id">CASE<br/><strong>{active.case_id}</strong></div></div>
         <EvidenceRail stages={active.stages} selected={selectedStage} onSelect={reviewStage} />
-        <nav className="case-tabs">{(["define", "evidence", "ffn", "attention", "provenance"] as const).map((item) => <button className={view === item ? "active" : ""} onClick={() => setView(item)} key={item}>{item === "ffn" ? "FFN Circuit" : item === "attention" ? "Attention Path" : item}</button>)}</nav>
+        <nav className="case-tabs">{(["define", "evidence", "trajectory", "ffn", "attention", "provenance"] as const).map((item) => <button className={view === item ? "active" : ""} onClick={() => setView(item)} key={item}>{item === "ffn" ? "FFN Circuit" : item === "attention" ? "Attention Path" : item === "trajectory" ? "Trajectory" : item}</button>)}</nav>
         {error && <pre className="error-panel">{error}</pre>}
         <div className="case-workspace">
           {view === "define" && <DefineCase active={active} intent={intent} setIntent={setIntent} workflow={workflow} setWorkflow={setWorkflow} advanced={advanced} setAdvanced={setAdvanced} yamlText={yamlText} setYamlText={setYamlText} applyYaml={applyYaml} save={save} busy={busy} />}
           {view === "evidence" && <EvidenceView caseValue={active} plan={plan} selectedStage={selectedStage} preflight={preflight} reviewStage={reviewStage} runStage={runStage} stop={stop} busy={busy} />}
+          {view === "trajectory" && <TrajectoryWorkspace summaries={summaries} />}
           {view === "ffn" && <FFNCircuit caseValue={active} summaries={summaries} />}
           {view === "attention" && <AttentionWorkspace caseValue={active} summaries={summaries} configurePath={configurePath} />}
           {view === "provenance" && <Provenance caseValue={active} setStatus={setStatus} />}
@@ -275,6 +281,7 @@ function EvidenceView({ caseValue, plan, selectedStage, preflight, reviewStage, 
 
 function FFNCircuit({ caseValue, summaries }: { caseValue: ResearchCase; summaries: Record<string, EvidenceSummary> }) {
   const rank = Object.values(summaries).find(isRankSummary) ?? null;
+  const coupling = Object.values(summaries).find(isFFNCouplingSummary);
   const intervention = Object.values(summaries).find(isInterventionSummary);
   const direction = Object.values(summaries).find(isDirectionSummary);
   const [split, setSplit] = useState<"all" | Split>("all");
@@ -286,10 +293,28 @@ function FFNCircuit({ caseValue, summaries }: { caseValue: ResearchCase; summari
   const residual = rank.measured_delta_mean - rank.predicted_delta_mean;
   return <div className="circuit-stack"><div className="filter-bar"><label>SPLIT<select value={split} onChange={(e) => setSplit(e.target.value as typeof split)}><option>all</option><option>discovery</option><option>validation</option><option>heldout</option></select></label><label>DIRECTION<select value={sign} onChange={(e) => setSign(e.target.value as typeof sign)}><option value="all">all</option><option value="target">toward target</option><option value="control">toward control</option></select></label><span>{rank.total_neuron_count.toLocaleString()} scored neurons · verified run {caseValue.stages.find((x) => x.key === "rank")?.run_id}</span></div>
     <FFNDecomposition rank={rank} residual={residual} />
+    <LayerAwareCoupling summary={coupling} />
     <div className="analysis-grid"><FFNLayers summary={rank} /><section className="panel neuron-inspector"><h3>Neuron inspector</h3>{neuron && <dl><dt>Neuron</dt><dd>L{neuron.layer}:n{neuron.neuron}</dd><dt>Coupling c</dt><dd>{fmt(neuron.coupling, 6)}</dd><dt>Activation Δa</dt><dd>{fmt(neuron.activation_delta_mean, 6)}</dd><dt>Signed importance I</dt><dd>{fmt(neuron.importance_mean, 6)}</dd><dt>RMS importance</dt><dd>{neuron.importance_rms.toFixed(6)}</dd><dt>Consistency</dt><dd>{(neuron.sign_consistency * 100).toFixed(0)}%</dd><dt>Observable effect</dt><dd>{neuron.observable_effect ?? (neuron.importance_mean >= 0 ? "toward_target" : "toward_control")}</dd></dl>}<div className="mini-neurons">{neurons.slice(0, 20).map((item) => <button className={item.rank === neuron?.rank ? "active" : ""} key={item.rank} onClick={() => setSelected(item.rank)}>L{item.layer}:n{item.neuron}<small>{fmt(item.importance_mean, 5)}</small></button>)}</div></section></div>
     <DosePanel title="Ranked-neuron intervention vs same-layer controls" doses={(intervention?.doses ?? []).filter((item) => split === "all" || item.split === split)} countKey="neuron_count" />
     <section className="panel direction-panel"><div><h3>Residual-direction controllability</h3><p className="muted">This is a separate controllability test. It does not localize the effect to ranked neurons.</p></div>{direction ? <DoseChart doses={direction.doses} countKey="strength" /> : <p className="empty-inline">Direction stage not yet verified.</p>}</section>
   </div>;
+}
+
+function TrajectoryWorkspace({ summaries }: { summaries: Record<string, EvidenceSummary> }) {
+  const summary = Object.values(summaries).find(isTrajectorySummary);
+  const [selectedPairId, setSelectedPairId] = useState("");
+  if (!summary) return <Empty>Run the paired trajectory stage to see where the two prompts begin to diverge.</Empty>;
+  const pairId = summary.pairs.some((item) => item.pair_id === selectedPairId) ? selectedPairId : summary.pairs[0]?.pair_id ?? "";
+  const rows = trajectoryRows(summary, pairId);
+  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  const transitions = pair?.transitions ?? [];
+  return <div className="trajectory-stack"><div className="filter-bar"><label>PAIR<select value={pairId} onChange={(event) => setSelectedPairId(event.target.value)}>{summary.pairs.map((item) => <option key={item.pair_id}>{item.pair_id}</option>)}</select></label><span>Native residual checkpoints decoded through the model's final norm and LM head · observational evidence</span></div><section className="panel chart"><h3>Paired prediction trajectory</h3><p className="muted">The target−control gap is decoded at block input, after attention, and after FFN. The shaded difference is a localization hypothesis, not a causal effect.</p><Plot data={[{ type: "scatter", mode: "lines", name: "original gap", x: rows.map((item) => item.x), y: rows.map((item) => item.original_gap), line: { color: "#386cb0" } }, { type: "scatter", mode: "lines", name: "perturbed gap", x: rows.map((item) => item.x), y: rows.map((item) => item.perturbed_gap), line: { color: "#c94b78" } }, { type: "bar", name: "paired Δ", x: rows.map((item) => item.x), y: rows.map((item) => item.pair_delta), marker: { color: rows.map((item) => item.pair_delta >= 0 ? "#0e9b8d" : "#d88aa8") }, opacity: .28 }]} layout={{ ...plotLayout, barmode: "overlay", xaxis: { title: "Layer checkpoint", tickmode: "array", tickvals: rows.map((item) => item.x).filter((_, index) => index % 3 === 2), ticktext: rows.map((item) => item.label).filter((_, index) => index % 3 === 2), gridcolor: "#dce5e8" }, yaxis: { title: "Target − control logit gap", gridcolor: "#dce5e8" }, legend: { orientation: "h", y: 1.12 } }} config={{ displaylogo: false, responsive: true }} useResizeHandler style={{ width: "100%", height: 430 }} /></section><div className="analysis-grid"><section className="panel"><h3>Largest transitions</h3><div className="trajectory-transitions">{transitions.map((item) => <article key={`${item.rank}-${item.layer}-${item.checkpoint}`}><span>#{item.rank}</span><strong>L{item.layer} · {label(item.checkpoint)}</strong><b>{fmt(item.pair_delta_change, 5)}</b></article>)}</div></section><section className="panel"><h3>Distribution diagnostics</h3>{rows.length ? <dl><dt>Final paired Δ</dt><dd>{fmt(pair?.final_pair_delta)}</dd><dt>Peak paired JS</dt><dd>{Math.max(...rows.map((item) => item.paired_js)).toFixed(6)}</dd><dt>Peak total variation</dt><dd>{Math.max(...rows.map((item) => item.paired_total_variation)).toFixed(6)}</dd><dt>Original final KL</dt><dd>{rows.at(-1)?.original_forward_kl_to_final.toFixed(8)}</dd><dt>Perturbed final KL</dt><dd>{rows.at(-1)?.perturbed_forward_kl_to_final.toFixed(8)}</dd></dl> : <p className="empty-inline">No checkpoint rows.</p>}</section></div></div>;
+}
+
+function LayerAwareCoupling({ summary }: { summary?: FFNCouplingSummary }) {
+  if (!summary) return <section className="panel"><h3>Layer-aware coupling</h3><p className="empty-inline">Run the FFN coupling stage to compare direct readout with downstream endpoint sensitivity.</p></section>;
+  const max = Math.max(...summary.neurons.map((item) => Math.max(item.direct_importance_rms, item.downstream_importance_rms)), 1e-8);
+  return <section className="panel chart"><h3>Direct readout vs downstream endpoint gradient</h3><p className="muted">Each point is one FFN neuron. Disagreement reveals where the original fixed readout misses layer-specific downstream transformation; it does not establish causality.</p><Plot data={[{ type: "scattergl", mode: "markers", x: summary.neurons.map((item) => item.direct_importance_rms), y: summary.neurons.map((item) => item.downstream_importance_rms), text: summary.neurons.map((item) => `#${item.rank} L${item.layer}:n${item.neuron}`), customdata: summary.neurons.map((item) => [item.activation_delta_mean, item.direct_downstream_sign_agreement, item.native_importance_rms]), marker: { size: summary.neurons.map((item) => 6 + 12 * Math.sqrt(item.downstream_importance_rms / max)), color: summary.neurons.map((item) => item.direct_downstream_sign_agreement), cmin: 0, cmax: 1, colorscale: [[0, "#c94b78"], [.5, "#e6c16a"], [1, "#0e9b8d"]], colorbar: { title: "sign agree" } }, hovertemplate: "%{text}<br>direct RMS=%{x:.6f}<br>downstream RMS=%{y:.6f}<br>Δa=%{customdata[0]:.6f}<br>sign agreement=%{customdata[1]:.0%}<br>native RMS=%{customdata[2]:.6f}<extra></extra>" }, { type: "scatter", mode: "lines", name: "equal sensitivity", x: [0, max], y: [0, max], line: { color: "#91a7ae", dash: "dot" }, hoverinfo: "skip" }]} layout={{ ...plotLayout, xaxis: { title: "Direct importance RMS", gridcolor: "#dce5e8" }, yaxis: { title: "Downstream importance RMS", gridcolor: "#dce5e8" }, legend: { orientation: "h", y: 1.12 } }} config={{ displaylogo: false, responsive: true }} useResizeHandler style={{ width: "100%", height: 420 }} /><div className="layer-strip">{[...summary.layers].sort((a, b) => b.downstream_rms_mass - a.downstream_rms_mass).slice(0, 8).map((item) => <span key={item.layer}>L{item.layer}<strong>{item.downstream_rms_mass.toFixed(3)}</strong><small>n{item.top_neuron}</small></span>)}</div></section>;
 }
 
 function FFNDecomposition({ rank, residual }: { rank: RankSummary; residual: number }) {
