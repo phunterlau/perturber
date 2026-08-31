@@ -20,6 +20,23 @@ class ForwardCapture:
 
 
 @dataclass(frozen=True)
+class LayerResidualCheckpoints:
+    """Residual-stream states around one decoder block at one token position."""
+
+    layer: int
+    block_input: torch.Tensor
+    post_attention: torch.Tensor
+    post_ffn: torch.Tensor
+
+
+@dataclass(frozen=True)
+class TrajectoryForwardCapture:
+    logits: torch.Tensor
+    checkpoints: tuple[LayerResidualCheckpoints, ...]
+    tokenized: TokenizedPrompt
+
+
+@dataclass(frozen=True)
 class ActivationEdit:
     layer: int
     neurons: tuple[int, ...]
@@ -160,6 +177,19 @@ class ModelAdapter(ABC):
         self,
         direction: torch.Tensor,
     ) -> tuple[torch.Tensor, ...]: ...
+
+    def forward_trajectory_capture(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+    ) -> TrajectoryForwardCapture:
+        raise NotImplementedError("the adapter does not support trajectory probing")
+
+    def decode_residual(self, residual: torch.Tensor) -> torch.Tensor:
+        """Decode one residual vector with the model's native final readout."""
+
+        raise NotImplementedError("the adapter does not support residual decoding")
 
     def forward_intervened(
         self,

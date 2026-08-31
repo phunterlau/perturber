@@ -17,8 +17,10 @@ from .base import (
     AttentionMetadata,
     ForwardCapture,
     GeneratedSequence,
+    LayerResidualCheckpoints,
     ModelAdapter,
     ResidualEdit,
+    TrajectoryForwardCapture,
 )
 
 
@@ -622,6 +624,124 @@ class QwenAdapter(ModelAdapter):
             coupling = torch.matmul(local_direction, weight.float())
             couplings.append(coupling.detach().float().cpu())
         return tuple(couplings)
+
+    def decode_residual(self, residual: torch.Tensor) -> torch.Tensor:
+        vector = residual.detach().to(device=self.device, dtype=self.dtype)
+        if vector.ndim != 1:
+            raise ValueError("residual decoder expects one hidden-state vector")
+        final_norm = getattr(self.model.model, "norm", None)
+        output_embedding = self.model.get_output_embeddings()
+        if output_embedding is None:
+            raise RuntimeError("model does not expose an output embedding")
+        with torch.inference_mode():
+            normalized = final_norm(vector) if final_norm is not None else vector
+            logits = output_embedding(normalized)
+        return logits.detach().float().cpu()
+
+    def forward_trajectory_capture(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+    ) -> TrajectoryForwardCapture:
+        sequence_length = int(input_ids.shape[-1])
+        resolved_position = (
+            capture_position
+            if capture_position >= 0
+            else sequence_length + capture_position
+        )
+        if not 0 <= resolved_position < sequence_length:
+            raise ValueError(
+                f"capture position {capture_position} is outside a prompt of "
+                f"{sequence_length} tokens"
+            )
+
+        block_inputs: dict[int, torch.Tensor] = {}
+        attention_outputs: dict[int, torch.Tensor] = {}
+        block_outputs: dict[int, torch.Tensor] = {}
+
+        def block_input_hook(layer_index: int):
+            def hook(
+                _module: torch.nn.Module,
+                inputs: tuple[torch.Tensor, ...],
+            ) -> None:
+                block_inputs[layer_index] = (
+                    inputs[0][0, resolved_position, :].detach().float().cpu()
+                )
+
+            return hook
+
+        def attention_output_hook(layer_index: int):
+            def hook(
+                _module: torch.nn.Module,
+                _inputs: tuple[torch.Tensor, ...],
+                output: torch.Tensor | tuple[torch.Tensor, ...],
+            ) -> None:
+                tensor = output[0] if isinstance(output, tuple) else output
+                attention_outputs[layer_index] = (
+                    tensor[0, resolved_position, :].detach().float().cpu()
+                )
+
+            return hook
+
+        def block_output_hook(layer_index: int):
+            def hook(
+                _module: torch.nn.Module,
+                _inputs: tuple[torch.Tensor, ...],
+                output: torch.Tensor | tuple[torch.Tensor, ...],
+            ) -> None:
+                tensor = output[0] if isinstance(output, tuple) else output
+                block_outputs[layer_index] = (
+                    tensor[0, resolved_position, :].detach().float().cpu()
+                )
+
+            return hook
+
+        with ExitStack() as stack:
+            for index, layer in enumerate(self.layers):
+                input_handle = layer.register_forward_pre_hook(block_input_hook(index))
+                output_handle = layer.register_forward_hook(block_output_hook(index))
+                stack.callback(input_handle.remove)
+                stack.callback(output_handle.remove)
+                attention = getattr(layer, "self_attn", None)
+                if attention is not None:
+                    attention_handle = attention.register_forward_hook(
+                        attention_output_hook(index)
+                    )
+                    stack.callback(attention_handle.remove)
+            with torch.inference_mode():
+                outputs = self.model(
+                    input_ids=input_ids.to(self.device),
+                    use_cache=False,
+                )
+
+        expected = set(range(len(self.layers)))
+        if set(block_inputs) != expected or set(block_outputs) != expected:
+            raise RuntimeError("failed to capture residual checkpoints for all layers")
+
+        checkpoints: list[LayerResidualCheckpoints] = []
+        for index in range(len(self.layers)):
+            block_input = block_inputs[index]
+            attention_output = attention_outputs.get(index)
+            post_attention = (
+                block_input + attention_output
+                if attention_output is not None
+                else block_input.clone()
+            )
+            checkpoints.append(
+                LayerResidualCheckpoints(
+                    layer=index,
+                    block_input=block_input,
+                    post_attention=post_attention,
+                    post_ffn=block_outputs[index],
+                )
+            )
+
+        return TrajectoryForwardCapture(
+            logits=outputs.logits[0, -1, :].detach().float().cpu(),
+            checkpoints=tuple(checkpoints),
+            tokenized=tokenized,
+        )
 
     def attention_metadata(self) -> AttentionMetadata:
         config = self.model.config

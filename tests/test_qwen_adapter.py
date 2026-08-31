@@ -65,6 +65,7 @@ class TinyInner(torch.nn.Module):
         self.layers = torch.nn.ModuleList(
             [TinyLayer(hidden, intermediate), TinyLayer(hidden, intermediate)]
         )
+        self.norm = torch.nn.Identity()
 
 
 class TinyQwen(torch.nn.Module):
@@ -131,6 +132,48 @@ def test_qwen_adapter_captures_exact_post_swiglu_down_proj_input() -> None:
     assert all(not layer.mlp.down_proj._forward_pre_hooks for layer in model.model.layers)
     assert not model.model.layers[-1]._forward_pre_hooks
     assert not model.model.layers[-1].mlp.down_proj._forward_hooks
+
+
+def test_qwen_adapter_captures_native_residual_trajectory() -> None:
+    model = TinyQwen()
+    adapter = QwenAdapter(
+        model_id="tiny/qwen3",
+        model=model,
+        tokenizer=object(),
+        device=torch.device("cpu"),
+        dtype=torch.float32,
+    )
+    input_ids = torch.tensor([[1, 2]])
+    tokenized = TokenizedPrompt(
+        text="fixture",
+        input_ids=(1, 2),
+        decoded_tokens=("1", "2"),
+    )
+
+    hidden = model.embed(input_ids)
+    expected = []
+    for layer in model.model.layers:
+        block_input = hidden[0, -1].detach()
+        hidden = layer(hidden)
+        expected.append((block_input, hidden[0, -1].detach()))
+
+    capture = adapter.forward_trajectory_capture(input_ids, tokenized, -1)
+
+    assert len(capture.checkpoints) == 2
+    for checkpoint, (block_input, post_ffn) in zip(
+        capture.checkpoints, expected, strict=True
+    ):
+        torch.testing.assert_close(checkpoint.block_input, block_input)
+        # The tiny fixture has no attention module, so the adapter exposes an
+        # explicit zero attention write rather than inventing a contribution.
+        torch.testing.assert_close(checkpoint.post_attention, block_input)
+        torch.testing.assert_close(checkpoint.post_ffn, post_ffn)
+    torch.testing.assert_close(
+        adapter.decode_residual(capture.checkpoints[-1].post_ffn),
+        capture.logits,
+    )
+    assert all(not layer._forward_pre_hooks for layer in model.model.layers)
+    assert all(not layer._forward_hooks for layer in model.model.layers)
 
 
 def test_prepare_input_accepts_transformers_batch_encoding_shape() -> None:
