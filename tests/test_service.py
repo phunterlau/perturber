@@ -15,6 +15,11 @@ from helpers import FakeAdapter
 def fake_rank_spec(*, pairs: int = 1) -> RankSpec:
     source = example_rank_spec().model_dump(mode="json")
     source["model"]["id"] = "fake/qwen3"
+    # Keep the fake service fixture host-independent. Production specs may use
+    # auto selection, but this fixture's adapter explicitly reports CPU/float32
+    # and its preflight assertions should not change on an MPS or CUDA host.
+    source["model"]["device"] = "cpu"
+    source["model"]["dtype"] = "float32"
     if pairs == 2:
         source["pairs"].append(
             {
