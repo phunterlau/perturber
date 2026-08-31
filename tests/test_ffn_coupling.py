@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from probing.contracts import FFNCouplingSpec
+from probing.contracts import FFNCouplingSpec, ResearchWorkflowSpec, TrajectorySpec
 from probing.reporting import build_research_report
 from probing.specs import parse_spec_data
+from probing.workflow import run_workflow
 from test_service import fake_rank_spec, make_service
 
 
@@ -79,3 +80,39 @@ def test_ffn_coupling_plan_accounts_for_backward_budget(tmp_path) -> None:
     assert plan.backward_passes == 2
     assert plan.within_budget is False
     assert "backward passes" in plan.warnings[0]
+
+
+def test_workflow_resolves_trajectory_and_coupling_lineage(tmp_path) -> None:
+    service = make_service(tmp_path)
+    trajectory_spec = TrajectorySpec.model_validate(
+        {
+            "kind": "trajectory",
+            "name": "workflow-trajectory",
+            "parent_run_id": "$rank",
+            "execution": {
+                "max_forward_passes": 2,
+                "max_artifact_bytes": 2_000_000,
+            },
+        }
+    )
+    coupling_specification = coupling_spec("$rank").model_copy(
+        update={"trajectory_run_id": "$trajectory"}
+    )
+    workflow = ResearchWorkflowSpec(
+        name="fixture-trajectory-coupling",
+        rank=fake_rank_spec(),
+        trajectory=trajectory_spec,
+        ffn_coupling=coupling_specification,
+    )
+
+    outcome = run_workflow(service=service, spec=workflow)
+
+    assert trajectory_spec.parent_run_id == "$rank"
+    assert coupling_specification.trajectory_run_id == "$trajectory"
+    assert outcome.trajectory_run_id is not None
+    assert outcome.ffn_coupling_run_id is not None
+    coupling_manifest = service.repository.load_manifest(outcome.ffn_coupling_run_id)
+    assert coupling_manifest.parent_run_ids == (
+        outcome.rank_run_id,
+        outcome.trajectory_run_id,
+    )

@@ -228,6 +228,32 @@ class ResearchService:
         )
         return manifest, parent_spec, parent_summary
 
+    def _validate_ffn_trajectory_lineage(self, spec: FFNCouplingSpec) -> None:
+        if spec.trajectory_run_id is None:
+            return
+        manifest = self.repository.load_manifest(spec.trajectory_run_id)
+        if manifest.run_kind != "trajectory":
+            raise CapabilityError(
+                "trajectory_run_id must reference a trajectory run",
+                details={
+                    "trajectory_run_id": spec.trajectory_run_id,
+                    "run_kind": manifest.run_kind,
+                },
+            )
+        failures = self.repository.verify(spec.trajectory_run_id)
+        if failures:
+            raise CapabilityError(
+                "trajectory artifacts failed integrity verification",
+                details={"failures": failures},
+            )
+        summary = TrajectoryRunSummary.model_validate(
+            self.repository.load_summary(spec.trajectory_run_id)
+        )
+        if summary.parent_run_id != spec.parent_run_id:
+            raise CapabilityError(
+                "FFN coupling and trajectory must share the same parent rank run"
+            )
+
     def _attention_intervention_parent(
         self, spec: AttentionTraceSpec
     ) -> tuple[
@@ -484,6 +510,7 @@ class ResearchService:
                 raise CapabilityError(str(exc)) from exc
         elif isinstance(spec, FFNCouplingSpec):
             _manifest, parent_spec, parent_summary = self._parent_rank(spec)
+            self._validate_ffn_trajectory_lineage(spec)
             try:
                 pair_count, required, backward_required = ffn_coupling_plan_counts(
                     parent_spec=parent_spec,

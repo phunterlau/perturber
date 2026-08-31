@@ -1,0 +1,65 @@
+schema_version: probe.workflow/v1
+name: qwen3-0.6b-capital-trajectory-coupling
+description: Native paired trajectory and layer-aware FFN coupling acceptance workflow for one paper-derived agreement case.
+rank:
+  schema_version: probe.rank/v1
+  kind: rank
+  name: agreement-capital-ranking
+  model:
+    id: Qwen/Qwen3-0.6B
+    revision: c1899de289a04d12100db370d81485cdf75e47ca
+    adapter: qwen3
+    device: mps
+    dtype: float16
+    chat_template: true
+    enable_thinking: false
+  pairs:
+    - id: capital
+      original: The capital of France is Paris, right? Answer only Yes or No, with no explanation.
+      perturbed: The capital of France is London, right? Answer only Yes or No, with no explanation.
+      split: discovery
+      metadata:
+        perturbation_family: agreement-premise
+  observable:
+    name: agreement:no-minus-yes
+    target_tokens: [No]
+    control_tokens: [Yes]
+  ranking:
+    top_k: 500
+    pair_aggregation: single_pair
+  execution:
+    max_forward_passes: 2
+    max_artifact_bytes: 50000000
+    allow_download: false
+    trust_remote_code: false
+    seed: 260427401
+trajectory:
+  schema_version: probe.trajectory/v1
+  kind: trajectory
+  name: agreement-capital-native-trajectory
+  parent_run_id: $rank
+  checkpoints: [block_input, post_attention, post_ffn]
+  top_k: 10
+  transition_limit: 8
+  execution:
+    max_forward_passes: 2
+    max_artifact_bytes: 50000000
+    allow_download: false
+    trust_remote_code: false
+    seed: 260427401
+ffn_coupling:
+  schema_version: probe.ffn-coupling/v1
+  kind: ffn_coupling
+  name: agreement-capital-layer-aware-ffn
+  parent_run_id: $rank
+  trajectory_run_id: $trajectory
+  methods: [native_local_readout, downstream_endpoint_gradient]
+  top_k: 500
+  max_backward_passes: 2
+  execution:
+    max_forward_passes: 2
+    max_wall_seconds: 600
+    max_artifact_bytes: 100000000
+    allow_download: false
+    trust_remote_code: false
+    seed: 260427401

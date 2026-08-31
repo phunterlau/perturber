@@ -812,6 +812,8 @@ class ResearchWorkflowSpec(StrictModel):
     description: str | None = None
     rank: RankSpec
     qualification: QualificationSpec | None = None
+    trajectory: TrajectorySpec | None = None
+    ffn_coupling: FFNCouplingSpec | None = None
     interventions: tuple[InterventionSpec, ...] = ()
     directions: tuple[DirectionInjectionSpec, ...] = ()
     attention_rank: AttentionHeadRankSpec | None = None
@@ -829,6 +831,22 @@ class ResearchWorkflowSpec(StrictModel):
     def validate_symbolic_lineage(self) -> "ResearchWorkflowSpec":
         if self.qualification is not None and self.qualification.parent_run_id != "$rank":
             raise ValueError("workflow qualification parent_run_id must be '$rank'")
+        if self.trajectory is not None and self.trajectory.parent_run_id != "$rank":
+            raise ValueError("workflow trajectory parent_run_id must be '$rank'")
+        if self.ffn_coupling is not None:
+            if self.ffn_coupling.parent_run_id != "$rank":
+                raise ValueError("workflow FFN coupling parent_run_id must be '$rank'")
+            if self.ffn_coupling.trajectory_run_id not in {None, "$trajectory"}:
+                raise ValueError(
+                    "workflow FFN coupling trajectory_run_id must be '$trajectory' or null"
+                )
+            if (
+                self.ffn_coupling.trajectory_run_id == "$trajectory"
+                and self.trajectory is None
+            ):
+                raise ValueError(
+                    "workflow FFN coupling references '$trajectory' but no trajectory stage exists"
+                )
         for child in self.interventions + self.directions:
             if child.parent_run_id != "$rank":
                 raise ValueError("workflow causal stage parent_run_id must be '$rank'")
@@ -1906,6 +1924,8 @@ class ResearchWorkflowOutcome(StrictModel):
     stages: tuple[WorkflowStageOutcome, ...]
     rank_run_id: str
     qualification_run_id: str | None = None
+    trajectory_run_id: str | None = None
+    ffn_coupling_run_id: str | None = None
     intervention_run_ids: tuple[str, ...] = ()
     direction_run_ids: tuple[str, ...] = ()
     attention_rank_run_id: str | None = None

@@ -12,7 +12,9 @@ from .contracts import (
     AttentionHeadRankSpec,
     AttentionTraceSpec,
     DirectionInjectionSpec,
+    FFNCouplingSpec,
     InterventionSpec,
+    TrajectorySpec,
     ResearchWorkflowOutcome,
     ResearchWorkflowSpec,
     WorkflowStageOutcome,
@@ -88,6 +90,10 @@ def workflow_stage_specs(
     stages: list[tuple[str, ExperimentSpec]] = [("rank", spec.rank)]
     if spec.qualification is not None:
         stages.append(("qualification", spec.qualification))
+    if spec.trajectory is not None:
+        stages.append(("trajectory", spec.trajectory))
+    if spec.ffn_coupling is not None:
+        stages.append(("ffn-coupling", spec.ffn_coupling))
     stages.extend(
         (f"intervention-{index}", child)
         for index, child in enumerate(spec.interventions, start=1)
@@ -132,6 +138,16 @@ def resolve_workflow_stage(
     qualification_run_id = run_ids.get("qualification")
     if stage_key == "qualification":
         return child.model_copy(update={"parent_run_id": rank_run_id})
+    if isinstance(child, TrajectorySpec):
+        return child.model_copy(update={"parent_run_id": rank_run_id})
+    if isinstance(child, FFNCouplingSpec):
+        updates: dict[str, str | None] = {"parent_run_id": rank_run_id}
+        if child.trajectory_run_id == "$trajectory":
+            trajectory_run_id = run_ids.get("trajectory")
+            if trajectory_run_id is None:
+                raise ValueError("FFN coupling requires a completed trajectory run")
+            updates["trajectory_run_id"] = trajectory_run_id
+        return child.model_copy(update=updates)
     if isinstance(child, (InterventionSpec, DirectionInjectionSpec)):
         return _resolve_causal_stage(
             child,
@@ -199,6 +215,35 @@ def run_workflow(
         )
         qualification_run_id = qualification.manifest.run_id
         stages.append(_stage(qualification, qualification_spec.name))
+
+    trajectory_run_id = None
+    if spec.trajectory is not None:
+        trajectory_spec = spec.trajectory.model_copy(
+            update={"parent_run_id": rank_run_id}
+        )
+        trajectory = service.execute(
+            trajectory_spec,
+            listener=listener,
+            diagnostic_stream=diagnostic_stream,
+        )
+        trajectory_run_id = trajectory.manifest.run_id
+        stages.append(_stage(trajectory, trajectory_spec.name))
+
+    ffn_coupling_run_id = None
+    if spec.ffn_coupling is not None:
+        updates: dict[str, str | None] = {"parent_run_id": rank_run_id}
+        if spec.ffn_coupling.trajectory_run_id == "$trajectory":
+            if trajectory_run_id is None:
+                raise ValueError("FFN coupling requires a completed trajectory run")
+            updates["trajectory_run_id"] = trajectory_run_id
+        coupling_spec = spec.ffn_coupling.model_copy(update=updates)
+        coupling = service.execute(
+            coupling_spec,
+            listener=listener,
+            diagnostic_stream=diagnostic_stream,
+        )
+        ffn_coupling_run_id = coupling.manifest.run_id
+        stages.append(_stage(coupling, coupling_spec.name))
 
     intervention_run_ids: list[str] = []
     for child in spec.interventions:
@@ -305,6 +350,8 @@ def run_workflow(
         stages=tuple(stages),
         rank_run_id=rank_run_id,
         qualification_run_id=qualification_run_id,
+        trajectory_run_id=trajectory_run_id,
+        ffn_coupling_run_id=ffn_coupling_run_id,
         intervention_run_ids=tuple(intervention_run_ids),
         direction_run_ids=tuple(direction_run_ids),
         attention_rank_run_id=attention_rank_run_id,

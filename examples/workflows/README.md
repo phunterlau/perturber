@@ -7,6 +7,19 @@ every committed child spec contains the actual immutable run IDs. The workflow
 directory under `.probe/workflows/` retains both the original symbolic driver
 and the completed stage map.
 
+The smallest native-trajectory acceptance workflow is:
+
+```bash
+uv run --locked probe workflow \
+  --driver examples/workflows/capital-trajectory-coupling.yaml \
+  --events jsonl
+```
+
+It performs two rank forwards, two native-trajectory forwards, then two
+forward/backward sensitivity passes. The trajectory is observational, and the
+direct/native/downstream coupling comparison remains a candidate ranking until
+controlled intervention.
+
 The language driver pins the Qwen3-0.6B model revision, MPS/float16 execution,
 all generation settings, and separate seeds for ranking, qualification,
 ablation controls, and random residual directions:
