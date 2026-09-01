@@ -197,6 +197,7 @@ export type FFNCouplingSummary = {
   parent_run_id: string;
   trajectory_run_id: string | null;
   pair_count: number;
+  candidate_pair_ids?: string[];
   logical_forward_passes: number;
   logical_backward_passes: number;
   methods: string[];

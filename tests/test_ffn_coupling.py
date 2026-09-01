@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from safetensors.torch import load_file
+
+from helpers import FakeAdapter
+from probing.engine import ProbeEngine
+from probing.ffn_coupling import run_ffn_coupling
 from probing.contracts import (
     FFNCouplingSpec,
     InterventionSpec,
@@ -109,6 +114,47 @@ def test_ffn_coupling_plan_accounts_for_backward_budget(tmp_path) -> None:
     assert plan.backward_passes == 2
     assert plan.within_budget is False
     assert "backward passes" in plan.warnings[0]
+
+
+def test_ffn_coupling_candidates_exclude_heldout_pairs(tmp_path) -> None:
+    service = make_service(tmp_path)
+    payload = fake_rank_spec(pairs=2).model_dump(mode="json")
+    payload["pairs"][1]["split"] = "heldout"
+    rank_specification = type(fake_rank_spec()).model_validate(payload)
+    rank = service.execute(rank_specification)
+    tensors = load_file(rank.run_directory / "tensors.safetensors")
+    tensors["activation_delta.pair_1.layer_0"] = tensors[
+        "activation_delta.pair_1.layer_0"
+    ] * 10_000
+    engine = ProbeEngine(FakeAdapter())
+    all_pairs = run_ffn_coupling(
+        engine=engine,
+        parent_spec=rank_specification,
+        parent_summary=rank.summary,
+        parent_tensors=tensors,
+        spec=coupling_spec(rank.manifest.run_id, max_forward_passes=4, max_backward_passes=4),
+        science_hash="all-pairs",
+    ).summary
+    discovery_only = run_ffn_coupling(
+        engine=engine,
+        parent_spec=rank_specification,
+        parent_summary=rank.summary,
+        parent_tensors=tensors,
+        spec=coupling_spec(rank.manifest.run_id).model_copy(
+            update={"pair_ids": ("capital",)}
+        ),
+        science_hash="discovery-only",
+    ).summary
+
+    assert all_pairs.pair_count == 2
+    assert all_pairs.candidate_pair_ids == ("capital",)
+    assert [
+        (item.layer, item.neuron, item.downstream_importance_rms)
+        for item in all_pairs.neurons
+    ] == [
+        (item.layer, item.neuron, item.downstream_importance_rms)
+        for item in discovery_only.neurons
+    ]
 
 
 def test_intervention_selects_downstream_candidates_from_coupling_parent(

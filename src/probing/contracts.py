@@ -1319,6 +1319,7 @@ class FFNCouplingRunSummary(StrictModel):
     model: dict[str, Any]
     observable: dict[str, Any]
     pair_count: PositiveInt
+    candidate_pair_ids: tuple[str, ...] = ()
     logical_forward_passes: PositiveInt
     logical_backward_passes: PositiveInt
     methods: tuple[str, ...]

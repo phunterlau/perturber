@@ -32,6 +32,12 @@ def ffn_coupling_plan_counts(
     unknown = sorted(set(requested) - available_pairs)
     if unknown:
         raise ValueError(f"FFN coupling references unknown parent pairs: {unknown}")
+    split_by_id = {pair.pair_id: pair.split for pair in parent_summary.pairs}
+    discovery = [pair_id for pair_id in requested if split_by_id[pair_id] == "discovery"]
+    if not discovery:
+        raise ValueError(
+            "FFN coupling candidate ranking requires at least one discovery pair"
+        )
     if spec.layers:
         invalid = [layer for layer in spec.layers if layer >= parent_summary.model["layer_count"]]
         if invalid:
@@ -133,12 +139,13 @@ def run_ffn_coupling(
                 original_downstream[layer] + perturbed_downstream[layer]
             )
             native = 0.5 * (original_native[layer] + perturbed_native[layer])
-            downstream_couplings[layer].append(downstream)
-            downstream_importances[layer].append(delta * downstream)
-            native_couplings[layer].append(native)
-            native_importances[layer].append(delta * native)
-            direct_importances[layer].append(delta * direct)
-            activation_deltas[layer].append(delta)
+            if pair.split == "discovery":
+                downstream_couplings[layer].append(downstream)
+                downstream_importances[layer].append(delta * downstream)
+                native_couplings[layer].append(native)
+                native_importances[layer].append(delta * native)
+                direct_importances[layer].append(delta * direct)
+                activation_deltas[layer].append(delta)
 
     layer_summaries: list[FFNCouplingLayerSummary] = []
     flattened_rms: list[torch.Tensor] = []
@@ -242,6 +249,9 @@ def run_ffn_coupling(
             "control_tokens": [item.text for item in observable.control],
         },
         pair_count=len(pair_results),
+        candidate_pair_ids=tuple(
+            item.pair_id for item in pair_results if item.split == "discovery"
+        ),
         logical_forward_passes=2 * len(pair_results),
         logical_backward_passes=2 * len(pair_results),
         methods=spec.methods,
@@ -251,6 +261,7 @@ def run_ffn_coupling(
         total_neuron_count=total,
         warnings=(
             "Layer-aware coupling is a local first-order influence hypothesis; controlled intervention remains required.",
+            "Candidate aggregation uses discovery pairs only; validation and held-out gradients are retained for separate diagnostics.",
         ),
     )
     return FFNCouplingComputation(summary=summary, tensors=tensors)
