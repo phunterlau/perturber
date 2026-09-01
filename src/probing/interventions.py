@@ -13,6 +13,7 @@ from .contracts import (
     AdditivityViolation,
     CausalWidthEstimate,
     ClaimRecord,
+    FFNCouplingRunSummary,
     InterventionDoseSummary,
     InterventionObservation,
     InterventionRunSummary,
@@ -38,7 +39,10 @@ def _prediction(engine: ProbeEngine, logits: torch.Tensor) -> str:
 def _select_neurons(
     summary: RankRunSummary,
     spec: InterventionSpec,
+    candidate_summary: FFNCouplingRunSummary | None = None,
 ) -> tuple[SelectedNeuron, ...]:
+    if candidate_summary is not None:
+        return _select_coupling_neurons(candidate_summary, spec)
     ranked = {
         (item.layer, item.neuron): item for item in summary.neurons
     }
@@ -55,6 +59,7 @@ def _select_neurons(
                     importance_mean=(source.importance_mean if source is not None else None),
                     importance_rms=(source.importance_rms if source is not None else None),
                     sign_consistency=(source.sign_consistency if source is not None else None),
+                    score_method="direct_structural",
                 )
             )
         return tuple(selected)
@@ -86,9 +91,65 @@ def _select_neurons(
             importance_mean=item.importance_mean,
             importance_rms=item.importance_rms,
             sign_consistency=item.sign_consistency,
+            score_method="direct_structural",
         )
         for item in candidates[: request.top_k]
     )
+
+
+def _select_coupling_neurons(
+    summary: FFNCouplingRunSummary,
+    spec: InterventionSpec,
+) -> tuple[SelectedNeuron, ...]:
+    request = spec.selection
+    ranked = {(item.layer, item.neuron): item for item in summary.neurons}
+
+    def selected(item) -> SelectedNeuron:
+        return SelectedNeuron(
+            rank=item.rank,
+            layer=item.layer,
+            neuron=item.neuron,
+            importance_mean=item.downstream_importance_mean,
+            importance_rms=item.downstream_importance_rms,
+            sign_consistency=item.downstream_sign_consistency,
+            score_method="downstream_endpoint_gradient",
+        )
+
+    if request.strategy == "explicit":
+        values = []
+        for reference in request.explicit:
+            source = ranked.get((reference.layer, reference.neuron))
+            values.append(
+                selected(source)
+                if source is not None
+                else SelectedNeuron(
+                    layer=reference.layer,
+                    neuron=reference.neuron,
+                    score_method="downstream_endpoint_gradient",
+                )
+            )
+        return tuple(values)
+
+    candidates = list(summary.neurons)
+    if request.layers:
+        allowed_layers = set(request.layers)
+        candidates = [item for item in candidates if item.layer in allowed_layers]
+    if request.sign == "positive":
+        candidates = [item for item in candidates if item.downstream_importance_mean > 0]
+    elif request.sign == "negative":
+        candidates = [item for item in candidates if item.downstream_importance_mean < 0]
+    candidates = [
+        item
+        for item in candidates
+        if item.downstream_sign_consistency >= request.min_sign_consistency
+    ]
+    assert request.top_k is not None
+    if len(candidates) < request.top_k:
+        raise ValueError(
+            f"selection requested {request.top_k} downstream-ranked neurons but only "
+            f"{len(candidates)} satisfy the filters"
+        )
+    return tuple(selected(item) for item in candidates[: request.top_k])
 
 
 def _conditions(spec: InterventionSpec) -> tuple[str, ...]:
@@ -278,8 +339,9 @@ def run_intervention(
     spec: InterventionSpec,
     science_hash: str,
     qualification_statuses: dict[str, str] | None = None,
+    candidate_summary: FFNCouplingRunSummary | None = None,
 ) -> InterventionRunSummary:
-    selected_all = _select_neurons(parent_summary, spec)
+    selected_all = _select_neurons(parent_summary, spec, candidate_summary)
     maximum_count = max(spec.sweep.neuron_counts)
     if maximum_count > len(selected_all):
         raise ValueError(
@@ -768,6 +830,16 @@ def run_intervention(
     return InterventionRunSummary(
         science_hash=science_hash,
         parent_run_id=spec.parent_run_id,
+        rank_run_id=(
+            candidate_summary.parent_run_id
+            if candidate_summary is not None
+            else spec.parent_run_id
+        ),
+        candidate_score_method=(
+            "downstream_endpoint_gradient"
+            if candidate_summary is not None
+            else "direct_structural"
+        ),
         qualification_run_id=spec.qualification_run_id,
         model=parent_summary.model,
         observable=parent_summary.observable,

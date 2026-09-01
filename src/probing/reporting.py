@@ -221,6 +221,11 @@ def build_research_report(
         limitations = parsed.warnings
     elif manifest.run_kind == "intervention":
         parsed = InterventionRunSummary.model_validate(summary)
+        candidate_label = (
+            "layer-aware downstream endpoint gradients"
+            if parsed.candidate_score_method == "downstream_endpoint_gradient"
+            else "direct structural readout"
+        )
         controlled = [
             item
             for item in parsed.doses
@@ -232,8 +237,12 @@ def build_research_report(
             default=None,
         )
         key_results.append(
-            f"Tested {len(parsed.selected_neurons)} ranked neurons with {parsed.operation.mode} over {len(parsed.doses)} split/condition/dose summaries."
+            f"Tested {len(parsed.selected_neurons)} neurons selected by {candidate_label} with {parsed.operation.mode} over {len(parsed.doses)} split/condition/dose summaries."
         )
+        if parsed.rank_run_id and parsed.rank_run_id != parsed.parent_run_id:
+            key_results.append(
+                f"Candidate run {parsed.parent_run_id} descends from rank run {parsed.rank_run_id}; both immutable IDs are retained."
+            )
         if strongest is not None:
             key_results.append(
                 f"Largest selected-minus-random absolute effect was {_format_effect(strongest.controlled_absolute_effect)} at N={strongest.neuron_count}, strength={strongest.strength:g}, split={strongest.split}, condition={strongest.condition}."
@@ -248,6 +257,7 @@ def build_research_report(
         next_steps.extend(
             (
                 "Replicate the controlled effect on held-out perturbations.",
+                "Compare direct-readout and downstream-gradient candidate sets under identical doses and controls.",
                 "Inspect collateral observables and additivity before assigning a narrow circuit claim.",
             )
         )

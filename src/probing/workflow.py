@@ -44,8 +44,14 @@ def _resolve_causal_stage(
     *,
     rank_run_id: str,
     qualification_run_id: str | None,
+    ffn_coupling_run_id: str | None = None,
 ) -> InterventionSpec | DirectionInjectionSpec:
-    updates: dict[str, str | None] = {"parent_run_id": rank_run_id}
+    parent_run_id = rank_run_id
+    if isinstance(child, InterventionSpec) and child.parent_run_id == "$ffn_coupling":
+        if ffn_coupling_run_id is None:
+            raise ValueError("intervention requires a completed FFN coupling run")
+        parent_run_id = ffn_coupling_run_id
+    updates: dict[str, str | None] = {"parent_run_id": parent_run_id}
     if child.qualification_run_id == "$qualification":
         if qualification_run_id is None:
             raise ValueError(
@@ -153,6 +159,7 @@ def resolve_workflow_stage(
             child,
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
+            ffn_coupling_run_id=run_ids.get("ffn-coupling"),
         )
     if isinstance(child, AttentionHeadRankSpec):
         return _resolve_attention_rank_stage(
@@ -251,6 +258,7 @@ def run_workflow(
             child,
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
+            ffn_coupling_run_id=ffn_coupling_run_id,
         )
         assert isinstance(resolved, InterventionSpec)
         outcome = service.execute(
@@ -267,6 +275,7 @@ def run_workflow(
             child,
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
+            ffn_coupling_run_id=ffn_coupling_run_id,
         )
         assert isinstance(resolved, DirectionInjectionSpec)
         outcome = service.execute(

@@ -228,6 +228,48 @@ class ResearchService:
         )
         return manifest, parent_spec, parent_summary
 
+    def _intervention_context(
+        self, spec: InterventionSpec
+    ) -> tuple[
+        RunManifest,
+        RankSpec,
+        RankRunSummary,
+        FFNCouplingRunSummary | None,
+    ]:
+        """Resolve a direct-rank or downstream-coupling candidate parent."""
+
+        candidate_manifest = self.repository.load_manifest(spec.parent_run_id)
+        if candidate_manifest.run_kind == "rank":
+            _manifest, rank_spec, rank_summary = self._parent_rank(spec)
+            return candidate_manifest, rank_spec, rank_summary, None
+        if candidate_manifest.run_kind != "ffn_coupling":
+            raise CapabilityError(
+                "intervention parent must be a rank or FFN coupling run",
+                details={
+                    "parent_run_id": spec.parent_run_id,
+                    "run_kind": candidate_manifest.run_kind,
+                },
+            )
+        failures = self.repository.verify(spec.parent_run_id)
+        if failures:
+            raise CapabilityError(
+                "parent FFN coupling artifacts failed integrity verification",
+                details={"parent_run_id": spec.parent_run_id, "failures": failures},
+            )
+        candidate_spec = self.repository.load_run_spec(spec.parent_run_id)
+        if not isinstance(candidate_spec, FFNCouplingSpec):
+            raise CapabilityError("parent run does not contain an FFN coupling spec")
+        candidate_summary = FFNCouplingRunSummary.model_validate(
+            self.repository.load_summary(spec.parent_run_id)
+        )
+        if candidate_spec.parent_run_id != candidate_summary.parent_run_id:
+            raise CapabilityError("FFN coupling rank lineage is inconsistent")
+        rank_proxy = spec.model_copy(
+            update={"parent_run_id": candidate_summary.parent_run_id}
+        )
+        _manifest, rank_spec, rank_summary = self._parent_rank(rank_proxy)
+        return candidate_manifest, rank_spec, rank_summary, candidate_summary
+
     def _validate_ffn_trajectory_lineage(self, spec: FFNCouplingSpec) -> None:
         if spec.trajectory_run_id is None:
             return
@@ -301,7 +343,6 @@ class ResearchService:
             spec,
             (
                 QualificationSpec,
-                InterventionSpec,
                 DirectionInjectionSpec,
                 AttentionHeadRankSpec,
                 TrajectorySpec,
@@ -309,6 +350,8 @@ class ResearchService:
             ),
         ):
             return self._parent_rank(spec)[1]
+        if isinstance(spec, InterventionSpec):
+            return self._intervention_context(spec)[1]
         _manifest, attention_spec, _summary = self._parent_attention_rank(spec)
         return self._parent_rank(attention_spec)[1]
 
@@ -340,6 +383,12 @@ class ResearchService:
             self.repository.load_summary(run_id)
         )
         expected_parent = spec.parent_run_id
+        if isinstance(spec, InterventionSpec):
+            _manifest, _rank_spec, _rank_summary, coupling_summary = (
+                self._intervention_context(spec)
+            )
+            if coupling_summary is not None:
+                expected_parent = coupling_summary.parent_run_id
         if isinstance(spec, AttentionHeadInterventionSpec):
             _manifest, _attention_spec, attention_summary = self._parent_attention_rank(
                 spec
@@ -532,7 +581,9 @@ class ResearchService:
             pair_count = len(requested)
             required = 2 * pair_count
         elif isinstance(spec, InterventionSpec):
-            _manifest, parent_spec, parent_summary = self._parent_rank(spec)
+            _manifest, parent_spec, parent_summary, _candidate_summary = (
+                self._intervention_context(spec)
+            )
             pair_count, required = intervention_plan_counts(
                 parent_spec=parent_spec,
                 parent_summary=parent_summary,
@@ -1076,6 +1127,7 @@ class ResearchService:
             attention_summary: AttentionHeadRankRunSummary | None = None
             attention_tensors: dict[str, torch.Tensor] | None = None
             ffn_coupling_tensors: dict[str, torch.Tensor] | None = None
+            coupling_candidate_summary: FFNCouplingRunSummary | None = None
             intervention_summary: AttentionHeadInterventionRunSummary | None = None
             trace_qualification_statuses: dict[str, str] | None = None
             if isinstance(spec, (AttentionHeadInterventionSpec, AttentionTraceSpec)):
@@ -1108,6 +1160,18 @@ class ResearchService:
                             ),
                         )
                     )
+            elif isinstance(spec, InterventionSpec):
+                (
+                    lineage_manifest,
+                    parent_spec,
+                    parent_summary,
+                    coupling_candidate_summary,
+                ) = self._intervention_context(spec)
+                parent_manifest = self.repository.load_manifest(
+                    coupling_candidate_summary.parent_run_id
+                    if coupling_candidate_summary is not None
+                    else spec.parent_run_id
+                )
             else:
                 parent_manifest, parent_spec, parent_summary = self._parent_rank(spec)
                 lineage_manifest = parent_manifest
@@ -1173,7 +1237,7 @@ class ResearchService:
                 elif isinstance(spec, FFNCouplingSpec):
                     parent_tensors = load_file(
                         self.repository.runs
-                        / spec.parent_run_id
+                        / parent_manifest.run_id
                         / "tensors.safetensors"
                     )
                     ffn_computation = run_ffn_coupling(
@@ -1189,7 +1253,7 @@ class ResearchService:
                 elif isinstance(spec, InterventionSpec):
                     tensor_path = (
                         self.repository.runs
-                        / spec.parent_run_id
+                        / parent_manifest.run_id
                         / "tensors.safetensors"
                     )
                     summary = run_intervention(
@@ -1200,6 +1264,7 @@ class ResearchService:
                         spec=spec,
                         science_hash=job.science_hash,
                         qualification_statuses=self._qualification_statuses(spec),
+                        candidate_summary=coupling_candidate_summary,
                     )
                 elif isinstance(spec, DirectionInjectionSpec):
                     summary = run_direction_injection(

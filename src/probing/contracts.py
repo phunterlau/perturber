@@ -847,9 +847,26 @@ class ResearchWorkflowSpec(StrictModel):
                 raise ValueError(
                     "workflow FFN coupling references '$trajectory' but no trajectory stage exists"
                 )
-        for child in self.interventions + self.directions:
+        for child in self.interventions:
+            if child.parent_run_id not in {"$rank", "$ffn_coupling"}:
+                raise ValueError(
+                    "workflow intervention parent_run_id must be '$rank' or '$ffn_coupling'"
+                )
+            if child.parent_run_id == "$ffn_coupling" and self.ffn_coupling is None:
+                raise ValueError(
+                    "workflow intervention references '$ffn_coupling' but no FFN coupling stage exists"
+                )
+            if child.qualification_run_id not in {None, "$qualification"}:
+                raise ValueError(
+                    "workflow qualification_run_id must be '$qualification' or null"
+                )
+            if child.qualification_run_id == "$qualification" and self.qualification is None:
+                raise ValueError(
+                    "workflow causal stage references '$qualification' but no qualification stage exists"
+                )
+        for child in self.directions:
             if child.parent_run_id != "$rank":
-                raise ValueError("workflow causal stage parent_run_id must be '$rank'")
+                raise ValueError("workflow direction parent_run_id must be '$rank'")
             if child.qualification_run_id not in {None, "$qualification"}:
                 raise ValueError(
                     "workflow qualification_run_id must be '$qualification' or null"
@@ -1353,6 +1370,9 @@ class SelectedNeuron(StrictModel):
     importance_mean: float | None = None
     importance_rms: float | None = Field(default=None, ge=0)
     sign_consistency: float | None = Field(default=None, ge=0, le=1)
+    score_method: Literal[
+        "direct_structural", "downstream_endpoint_gradient"
+    ] = "direct_structural"
 
 
 class InterventionObservation(StrictModel):
@@ -1423,6 +1443,10 @@ class InterventionRunSummary(StrictModel):
     )
     science_hash: str
     parent_run_id: str
+    rank_run_id: str | None = None
+    candidate_score_method: Literal[
+        "direct_structural", "downstream_endpoint_gradient"
+    ] = "direct_structural"
     qualification_run_id: str | None = None
     model: dict[str, Any]
     observable: dict[str, Any]
