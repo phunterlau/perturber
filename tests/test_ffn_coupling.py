@@ -134,6 +134,37 @@ def test_intervention_selects_downstream_candidates_from_coupling_parent(
     assert service.repository.verify(outcome.manifest.run_id) == ()
 
 
+def test_intervention_selects_preregistered_direct_downstream_overlap(tmp_path) -> None:
+    service = make_service(tmp_path)
+    rank = service.execute(fake_rank_spec())
+    coupling = service.execute(coupling_spec(rank.manifest.run_id))
+    payload = coupling_intervention(coupling.manifest.run_id).model_dump(mode="json")
+    payload["selection"] = {
+        "strategy": "ranked_top_k",
+        "top_k": 1,
+        "candidate_method": "direct_downstream_overlap",
+        "overlap_pool_size": 2,
+    }
+    spec = InterventionSpec.model_validate(payload)
+
+    outcome = service.execute(spec)
+
+    selected = outcome.summary.selected_neurons[0]
+    direct_pool = {
+        (item.layer, item.neuron)
+        for item in sorted(
+            coupling.summary.neurons,
+            key=lambda item: (-item.direct_importance_rms, item.layer, item.neuron),
+        )[:2]
+    }
+    downstream_pool = {
+        (item.layer, item.neuron) for item in coupling.summary.neurons[:2]
+    }
+    assert (selected.layer, selected.neuron) in direct_pool & downstream_pool
+    assert selected.score_method == "direct_downstream_overlap"
+    assert outcome.summary.candidate_score_method == "direct_downstream_overlap"
+
+
 def test_workflow_resolves_trajectory_and_coupling_lineage(tmp_path) -> None:
     service = make_service(tmp_path)
     trajectory_spec = TrajectorySpec.model_validate(

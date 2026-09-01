@@ -228,7 +228,7 @@ export type InterventionSummary = {
   parent_run_id: string;
   rank_run_id?: string | null;
   trajectory_run_id?: string | null;
-  candidate_score_method?: "direct_structural" | "downstream_endpoint_gradient";
+  candidate_score_method?: "direct_structural" | "downstream_endpoint_gradient" | "direct_downstream_overlap";
   evidence_stage: "causal_intervention";
   logical_forward_passes: number;
   selected_neurons: Array<NeuronScore>;

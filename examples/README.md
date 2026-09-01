@@ -82,6 +82,14 @@ uv run --locked probe workflow \
   --events jsonl
 ```
 
+Run the direct-versus-layer-aware trajectory causal follow-up:
+
+```bash
+uv run --locked probe workflow \
+  --driver examples/workflows/language-trajectory-causal-followup.yaml \
+  --events jsonl
+```
+
 Run the attention-path workflow:
 
 ```bash

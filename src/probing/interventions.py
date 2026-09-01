@@ -45,6 +45,10 @@ def _select_neurons(
 ) -> tuple[SelectedNeuron, ...]:
     if candidate_summary is not None:
         return _select_coupling_neurons(candidate_summary, spec)
+    if spec.selection.candidate_method != "parent_ranking":
+        raise ValueError(
+            "direct/downstream overlap selection requires an FFN coupling parent"
+        )
     ranked = {
         (item.layer, item.neuron): item for item in summary.neurons
     }
@@ -106,7 +110,7 @@ def _select_coupling_neurons(
     request = spec.selection
     ranked = {(item.layer, item.neuron): item for item in summary.neurons}
 
-    def selected(item) -> SelectedNeuron:
+    def selected(item, *, score_method: str = "downstream_endpoint_gradient") -> SelectedNeuron:
         return SelectedNeuron(
             rank=item.rank,
             layer=item.layer,
@@ -114,7 +118,7 @@ def _select_coupling_neurons(
             importance_mean=item.downstream_importance_mean,
             importance_rms=item.downstream_importance_rms,
             sign_consistency=item.downstream_sign_consistency,
-            score_method="downstream_endpoint_gradient",
+            score_method=score_method,
         )
 
     if request.strategy == "explicit":
@@ -146,12 +150,33 @@ def _select_coupling_neurons(
         if item.downstream_sign_consistency >= request.min_sign_consistency
     ]
     assert request.top_k is not None
+    if request.candidate_method == "direct_downstream_overlap":
+        assert request.overlap_pool_size is not None
+        downstream_pool = candidates[: request.overlap_pool_size]
+        direct_pool = sorted(
+            candidates,
+            key=lambda item: (-item.direct_importance_rms, item.layer, item.neuron),
+        )[: request.overlap_pool_size]
+        direct_keys = {(item.layer, item.neuron) for item in direct_pool}
+        candidates = [
+            item
+            for item in downstream_pool
+            if (item.layer, item.neuron) in direct_keys
+        ]
     if len(candidates) < request.top_k:
         raise ValueError(
-            f"selection requested {request.top_k} downstream-ranked neurons but only "
+            f"selection requested {request.top_k} coupling candidates but only "
             f"{len(candidates)} satisfy the filters"
         )
-    return tuple(selected(item) for item in candidates[: request.top_k])
+    method = (
+        "direct_downstream_overlap"
+        if request.candidate_method == "direct_downstream_overlap"
+        else "downstream_endpoint_gradient"
+    )
+    return tuple(
+        selected(item, score_method=method)
+        for item in candidates[: request.top_k]
+    )
 
 
 def _conditions(spec: InterventionSpec) -> tuple[str, ...]:
@@ -934,8 +959,8 @@ def run_intervention(
             else spec.parent_run_id
         ),
         candidate_score_method=(
-            "downstream_endpoint_gradient"
-            if candidate_summary is not None
+            selected_all[0].score_method
+            if candidate_summary is not None and selected_all
             else "direct_structural"
         ),
         qualification_run_id=spec.qualification_run_id,

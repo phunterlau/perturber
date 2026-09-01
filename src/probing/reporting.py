@@ -224,7 +224,11 @@ def build_research_report(
         candidate_label = (
             "layer-aware downstream endpoint gradients"
             if parsed.candidate_score_method == "downstream_endpoint_gradient"
-            else "direct structural readout"
+            else (
+                "the preregistered direct/downstream top-pool overlap"
+                if parsed.candidate_score_method == "direct_downstream_overlap"
+                else "direct structural readout"
+            )
         )
         controlled = [
             item

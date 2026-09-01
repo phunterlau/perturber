@@ -386,6 +386,10 @@ class NeuronReference(StrictModel):
 
 class NeuronSelectionRequest(StrictModel):
     strategy: Literal["ranked_top_k", "explicit"] = "ranked_top_k"
+    candidate_method: Literal[
+        "parent_ranking", "direct_downstream_overlap"
+    ] = "parent_ranking"
+    overlap_pool_size: PositiveInt | None = None
     top_k: PositiveInt | None = 20
     explicit: tuple[NeuronReference, ...] = ()
     layers: tuple[int, ...] = ()
@@ -399,11 +403,26 @@ class NeuronSelectionRequest(StrictModel):
                 raise ValueError("ranked_top_k selection requires top_k")
             if self.explicit:
                 raise ValueError("ranked_top_k selection cannot include explicit neurons")
+            if self.candidate_method == "direct_downstream_overlap":
+                if self.overlap_pool_size is None:
+                    raise ValueError(
+                        "direct_downstream_overlap requires overlap_pool_size"
+                    )
+                if self.top_k is not None and self.overlap_pool_size < self.top_k:
+                    raise ValueError("overlap_pool_size must be at least top_k")
+            elif self.overlap_pool_size is not None:
+                raise ValueError(
+                    "overlap_pool_size is only valid for direct_downstream_overlap"
+                )
         else:
             if not self.explicit:
                 raise ValueError("explicit selection requires at least one neuron")
             if self.top_k is not None:
                 raise ValueError("explicit selection requires top_k=null")
+            if self.candidate_method != "parent_ranking":
+                raise ValueError("explicit selection cannot change candidate_method")
+            if self.overlap_pool_size is not None:
+                raise ValueError("explicit selection cannot set overlap_pool_size")
             identities = [(item.layer, item.neuron) for item in self.explicit]
             if len(identities) != len(set(identities)):
                 raise ValueError("explicit neuron identities must be unique")
@@ -1382,7 +1401,9 @@ class SelectedNeuron(StrictModel):
     importance_rms: float | None = Field(default=None, ge=0)
     sign_consistency: float | None = Field(default=None, ge=0, le=1)
     score_method: Literal[
-        "direct_structural", "downstream_endpoint_gradient"
+        "direct_structural",
+        "downstream_endpoint_gradient",
+        "direct_downstream_overlap",
     ] = "direct_structural"
 
 
@@ -1473,7 +1494,9 @@ class InterventionRunSummary(StrictModel):
     parent_run_id: str
     rank_run_id: str | None = None
     candidate_score_method: Literal[
-        "direct_structural", "downstream_endpoint_gradient"
+        "direct_structural",
+        "downstream_endpoint_gradient",
+        "direct_downstream_overlap",
     ] = "direct_structural"
     qualification_run_id: str | None = None
     trajectory_run_id: str | None = None
