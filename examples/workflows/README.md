@@ -24,7 +24,7 @@ Measured Qwen3-0.6B MPS results and exact replay conclusions are checked in at
 [`capital-trajectory-coupling-reports/`](capital-trajectory-coupling-reports/).
 
 The trajectory-guided causal follow-up compares direct-readout,
-downstream-gradient, and preregistered top-pool-overlap candidates under the
+downstream-gradient, and preregistered top-24-pool-overlap candidates under the
 same widths, patch dose, generated-behavior gate, discovery/held-out split, and
 three same-layer random controls:
 
@@ -38,6 +38,11 @@ Its intervention runs link the baseline trajectory and emit checkpoint-level
 selected-versus-control overlays without adding model calls. Candidate ranking
 and trajectory localization remain hypotheses; the backend intervention claims
 depend on qualification, matched controls, and split-specific results.
+
+The verified MPS [analysis](language-trajectory-causal-followup-reports/analysis.md)
+and [machine-readable results](language-trajectory-causal-followup-reports/results.json)
+show that downstream-gradient candidates beat direct-readout candidates at both
+tested widths on discovery and one frozen held-out prompt.
 
 The language driver pins the Qwen3-0.6B model revision, MPS/float16 execution,
 all generation settings, and separate seeds for ranking, qualification,

@@ -136,7 +136,7 @@ interventions:
     selection:
       strategy: ranked_top_k
       candidate_method: direct_downstream_overlap
-      overlap_pool_size: 250
+      overlap_pool_size: 24
       top_k: 16
       sign: positive
       min_sign_consistency: 0.6666666667

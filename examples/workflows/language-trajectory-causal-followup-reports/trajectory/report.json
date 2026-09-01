@@ -1,0 +1,22 @@
+{
+  "claims": [],
+  "evidence_stage": "observational_trajectory",
+  "headline": "Observational native paired trajectory",
+  "key_results": [
+    "Decoded 3 paired trajectories with 6 logical forward passes.",
+    "Largest suggested transition is arithmetic at L27/post_ffn (paired gap change +11.9375)."
+  ],
+  "limitations": [
+    "Native trajectory values are observational decodability evidence, not causal use."
+  ],
+  "parent_run_ids": [
+    "20260901T195601-ee007a7444f0"
+  ],
+  "recommended_next_steps": [
+    "Confirm a transition band before scoping component analysis.",
+    "Test candidate states and components with matched causal interventions."
+  ],
+  "run_id": "20260901T195605-8d983fa08b99",
+  "run_kind": "trajectory",
+  "schema_version": "probe.research-report/v1"
+}

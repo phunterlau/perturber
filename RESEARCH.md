@@ -56,6 +56,9 @@ Start from the smallest relevant checked-in example:
 - `examples/paper-*.yaml`: representative paper-pattern cases.
 - `examples/workflows/language-causal-loop.yaml`: qualification, FFN
   intervention, and residual-direction controls.
+- `examples/workflows/language-trajectory-causal-followup.yaml`: native
+  trajectory, discovery-only layer-aware FFN coupling, and matched direct,
+  downstream, and overlap interventions.
 - `examples/workflows/language-attention-path.yaml`: qualification, head
   ranking/intervention, token routes, and sender-receiver path probing.
 
@@ -170,6 +173,22 @@ uv run --locked probe workflow \
   --driver examples/workflows/language-causal-loop.yaml \
   --events jsonl
 ```
+
+To compare candidate scoring methods under one frozen split and dose schedule:
+
+```bash
+uv run --locked probe workflow \
+  --driver examples/workflows/language-trajectory-causal-followup.yaml \
+  --events jsonl
+```
+
+In this workflow, `ffn_coupling.candidate_pair_ids` must contain discovery pairs
+only. Treat any held-out pair appearing there as leakage and reject the run.
+`candidate_method: direct_downstream_overlap` requires an explicit
+`overlap_pool_size`; report that pool as well as the intervention width. Compare
+controlled absolute effects at identical widths and splits. The intervened
+trajectory's first non-zero checkpoint describes effect propagation, while the
+matched intervention claim—not the trajectory—determines causal status.
 
 Interpret the stages separately:
 

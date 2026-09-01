@@ -1,0 +1,24 @@
+{
+  "claims": [],
+  "evidence_stage": "observational_ffn_coupling",
+  "headline": "Observational layer-aware FFN coupling",
+  "key_results": [
+    "Compared direct, native-local, and downstream-gradient coupling for 86016 neurons.",
+    "Leading downstream-sensitive unit is L23/N59 (gradient importance RMS 1.23576, direct/gradient sign agreement 1.000)."
+  ],
+  "limitations": [
+    "Layer-aware coupling is a local first-order influence hypothesis; controlled intervention remains required.",
+    "Candidate aggregation uses discovery pairs only; validation and held-out gradients are retained for separate diagnostics."
+  ],
+  "parent_run_ids": [
+    "20260901T195601-ee007a7444f0",
+    "20260901T195605-8d983fa08b99"
+  ],
+  "recommended_next_steps": [
+    "Compare top gradient-ranked neurons with same-layer random controls.",
+    "Treat direct-versus-gradient disagreement as a hypothesis about downstream transformation."
+  ],
+  "run_id": "20260901T195607-237ecd6c3c64",
+  "run_kind": "ffn_coupling",
+  "schema_version": "probe.research-report/v1"
+}

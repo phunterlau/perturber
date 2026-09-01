@@ -1,0 +1,80 @@
+{
+  "schema_version": "probe.example-analysis/v1",
+  "recorded_at": "2026-09-01T19:56:35Z",
+  "driver": "../language-trajectory-causal-followup.yaml",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "adapter": "qwen3-dense-swiglu-v1",
+    "device": "mps",
+    "dtype": "float16"
+  },
+  "workflow_id": "20260901T195635-78b02928f149",
+  "runs": {
+    "rank": "20260901T195601-ee007a7444f0",
+    "qualification": "20260901T195602-5dcaeecb4319",
+    "trajectory": "20260901T195605-8d983fa08b99",
+    "ffn_coupling": "20260901T195607-237ecd6c3c64",
+    "direct_patch": "20260901T195616-c5c6d61bf243",
+    "downstream_patch": "20260901T195625-99882b5900b1",
+    "overlap_patch": "20260901T195635-b8ea6d0af19c"
+  },
+  "verification": {
+    "all_artifacts_valid": true,
+    "logical_forward_passes": 96,
+    "logical_backward_passes": 6,
+    "candidate_pair_ids": ["capital", "arithmetic"],
+    "heldout_pair_ids": ["science"],
+    "heldout_excluded_from_candidate_aggregation": true
+  },
+  "qualification": {
+    "claim_eligible": true,
+    "informative_pairs": 3,
+    "weak_pairs": 0,
+    "invalid_pairs": 0
+  },
+  "ranking": {
+    "measured_delta_mean": 23.78449773788452,
+    "predicted_delta_mean": 26.736194610595703,
+    "ffn_skip_mean": 0.13139871178104473,
+    "direct_downstream_top16_overlap_count": 12,
+    "direct_downstream_top16_overlap_fraction": 0.75
+  },
+  "controlled_patch_effects": [
+    {"method": "direct_structural", "width": 4, "discovery": 3.581877867380778, "heldout": 3.001357078552246},
+    {"method": "direct_structural", "width": 16, "discovery": 8.980574448903402, "heldout": 9.585659662882486},
+    {"method": "downstream_endpoint_gradient", "width": 4, "discovery": 5.812061945597331, "heldout": 5.121433575948079},
+    {"method": "downstream_endpoint_gradient", "width": 16, "discovery": 11.1450404326121, "heldout": 11.468869845072428},
+    {"method": "direct_downstream_overlap", "width": 4, "discovery": 5.803069432576497, "heldout": 5.113816261291504},
+    {"method": "direct_downstream_overlap", "width": 16, "discovery": 10.550024509429932, "heldout": 11.022941589355469}
+  ],
+  "trajectory_onset_at_width16": [
+    {"method": "direct_structural", "layer": 21, "checkpoint": "post_ffn", "discovery_mean_effect": 0.7484617233276367, "final_effect": 9.039014339447021},
+    {"method": "downstream_endpoint_gradient", "layer": 19, "checkpoint": "post_ffn", "discovery_mean_effect": 0.8419859409332275, "final_effect": 11.169992446899414},
+    {"method": "direct_downstream_overlap", "layer": 20, "checkpoint": "post_ffn", "discovery_mean_effect": 0.5495057106018066, "final_effect": 10.580274105072021}
+  ],
+  "important_overlap_neurons": [
+    {"layer": 23, "neuron": 59, "downstream_rms": 1.2357568740844727},
+    {"layer": 22, "neuron": 349, "downstream_rms": 0.7904217839241028},
+    {"layer": 27, "neuron": 52, "downstream_rms": 0.7364017963409424},
+    {"layer": 27, "neuron": 22, "downstream_rms": 0.7268246412277222},
+    {"layer": 27, "neuron": 39, "downstream_rms": 0.5757151246070862},
+    {"layer": 27, "neuron": 30, "downstream_rms": 0.4842030704021454},
+    {"layer": 27, "neuron": 53, "downstream_rms": 0.4250754714012146},
+    {"layer": 25, "neuron": 163, "downstream_rms": 0.38502439856529236},
+    {"layer": 23, "neuron": 179, "downstream_rms": 0.37762650847435},
+    {"layer": 27, "neuron": 165, "downstream_rms": 0.3410971760749817},
+    {"layer": 23, "neuron": 561, "downstream_rms": 0.31409168243408203},
+    {"layer": 21, "neuron": 230, "downstream_rms": 0.3109825551509857},
+    {"layer": 21, "neuron": 158, "downstream_rms": 0.299123078584671},
+    {"layer": 21, "neuron": 109, "downstream_rms": 0.2785384953022003},
+    {"layer": 20, "neuron": 510, "downstream_rms": 0.252042293548584},
+    {"layer": 26, "neuron": 240, "downstream_rms": 0.20719727873802185}
+  ],
+  "claim_status": {
+    "direct": "supported_local_sufficiency",
+    "downstream": "supported_local_sufficiency",
+    "overlap": "supported_local_sufficiency",
+    "heldout": "one_predeclared_pair_only"
+  }
+}

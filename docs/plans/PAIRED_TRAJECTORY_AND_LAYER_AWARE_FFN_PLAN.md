@@ -1,6 +1,6 @@
 # Native Paired Trajectories and Layer-Aware FFN Coupling
 
-Status: implementation plan  
+Status: milestones 1-4 implemented and accepted on Qwen3-0.6B/MPS; milestones 5-6 partially complete
 Target repository: Perturber  
 Primary acceptance model: `Qwen/Qwen3-0.6B` on macOS MPS  
 Scientific boundary: trajectories and coupling scores generate hypotheses;

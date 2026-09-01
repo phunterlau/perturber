@@ -276,3 +276,26 @@ def test_checked_in_capital_workflow_preserves_boolean_like_tokens() -> None:
     assert workflow.rank.observable.control_tokens == ("Yes",)
     assert workflow.ffn_coupling is not None
     assert workflow.ffn_coupling.trajectory_run_id == "$trajectory"
+
+
+def test_checked_in_causal_followup_freezes_split_and_overlap_controls() -> None:
+    driver = (
+        Path(__file__).parents[1]
+        / "examples/workflows/language-trajectory-causal-followup.yaml"
+    )
+
+    workflow = ResearchWorkflowSpec.model_validate(load_document(driver))
+
+    assert [pair.split for pair in workflow.rank.pairs] == [
+        "discovery",
+        "discovery",
+        "heldout",
+    ]
+    assert workflow.ffn_coupling is not None
+    assert workflow.ffn_coupling.trajectory_run_id == "$trajectory"
+    assert len(workflow.interventions) == 3
+    overlap = workflow.interventions[2]
+    assert overlap.parent_run_id == "$ffn_coupling"
+    assert overlap.trajectory_run_id == "$trajectory"
+    assert overlap.selection.candidate_method == "direct_downstream_overlap"
+    assert overlap.selection.overlap_pool_size == 24
