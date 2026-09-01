@@ -18,10 +18,12 @@ from .contracts import (
     InterventionObservation,
     InterventionRunSummary,
     InterventionSpec,
+    InterventionTrajectoryCheckpoint,
     PairResultSummary,
     RankRunSummary,
     RankSpec,
     SelectedNeuron,
+    TrajectoryRunSummary,
 )
 from .domain import ObservableSpec
 from .engine import ProbeEngine
@@ -340,6 +342,7 @@ def run_intervention(
     science_hash: str,
     qualification_statuses: dict[str, str] | None = None,
     candidate_summary: FFNCouplingRunSummary | None = None,
+    trajectory_summary: TrajectoryRunSummary | None = None,
 ) -> InterventionRunSummary:
     selected_all = _select_neurons(parent_summary, spec, candidate_summary)
     maximum_count = max(spec.sweep.neuron_counts)
@@ -375,11 +378,29 @@ def run_intervention(
         for request in spec.collateral_observables
     )
     observations: list[InterventionObservation] = []
+    trajectory_overlays: list[InterventionTrajectoryCheckpoint] = []
     random_generator = random.Random(spec.execution.seed)
     all_selected = {(item.layer, item.neuron) for item in selected_all}
     model_calls = 0
     baseline_generation: dict[tuple[str, str], tuple[str, str | None]] = {}
     baseline_collateral: dict[tuple[str, str], dict[str, float]] = {}
+    trajectory_pairs = (
+        {item.pair_id: item for item in trajectory_summary.pairs}
+        if trajectory_summary is not None
+        else {}
+    )
+    missing_trajectory_pairs = (
+        sorted(
+            {pair.id for _index, pair, _summary in pairs} - set(trajectory_pairs)
+        )
+        if trajectory_summary is not None
+        else []
+    )
+    if missing_trajectory_pairs:
+        raise ValueError(
+            "trajectory overlay is missing intervention pairs: "
+            f"{missing_trajectory_pairs}"
+        )
 
     def run_one(
         *,
@@ -436,12 +457,22 @@ def run_intervention(
             tensors=parent_tensors,
             parent_pair_index=parent_pair_index,
         )
-        capture = engine.adapter.forward_intervened(
-            input_ids,
-            tokenized,
-            parent_spec.capture.position,
-            edits,
-        )
+        trajectory_capture = None
+        if trajectory_summary is not None and arm in {"selected", "matched_random"}:
+            trajectory_capture = engine.adapter.forward_trajectory_intervened(
+                input_ids,
+                tokenized,
+                parent_spec.capture.position,
+                edits,
+            )
+            capture = trajectory_capture
+        else:
+            capture = engine.adapter.forward_intervened(
+                input_ids,
+                tokenized,
+                parent_spec.capture.position,
+                edits,
+            )
         model_calls += 1
         intervention_gap = logit_gap(
             capture.logits, observable.target_ids, observable.control_ids
@@ -449,6 +480,69 @@ def run_intervention(
         progress = None
         if source_gap is not None and abs(source_gap - baseline_gap) > 1e-8:
             progress = (intervention_gap - baseline_gap) / (source_gap - baseline_gap)
+
+        if trajectory_capture is not None:
+            pair_trajectory = trajectory_pairs[pair.id]
+            baseline_by_key = {
+                (item.layer, item.checkpoint): item
+                for item in pair_trajectory.checkpoints
+            }
+            source_condition = (
+                "perturbed" if spec.operation.mode == "patch" else "original"
+            )
+            for layer in trajectory_capture.checkpoints:
+                for checkpoint_name in (
+                    "block_input",
+                    "post_attention",
+                    "post_ffn",
+                ):
+                    baseline_checkpoint = baseline_by_key.get(
+                        (layer.layer, checkpoint_name)
+                    )
+                    if baseline_checkpoint is None:
+                        continue
+                    baseline_checkpoint_gap = float(
+                        getattr(baseline_checkpoint, f"{condition}_gap")
+                    )
+                    checkpoint_logits = engine.adapter.decode_residual(
+                        getattr(layer, checkpoint_name)
+                    )
+                    checkpoint_gap = logit_gap(
+                        checkpoint_logits,
+                        observable.target_ids,
+                        observable.control_ids,
+                    )
+                    checkpoint_progress = None
+                    if spec.operation.mode in {"patch", "restore"}:
+                        source_checkpoint_gap = float(
+                            getattr(
+                                baseline_checkpoint,
+                                f"{source_condition}_gap",
+                            )
+                        )
+                        denominator = source_checkpoint_gap - baseline_checkpoint_gap
+                        if abs(denominator) > 1e-8:
+                            checkpoint_progress = (
+                                checkpoint_gap - baseline_checkpoint_gap
+                            ) / denominator
+                    trajectory_overlays.append(
+                        InterventionTrajectoryCheckpoint(
+                            pair_id=pair.id,
+                            split=pair.split,
+                            arm=arm,
+                            control_sample=control_sample,
+                            condition=condition,
+                            mode=spec.operation.mode,
+                            neuron_count=len(neurons),
+                            strength=strength,
+                            layer=layer.layer,
+                            checkpoint=checkpoint_name,
+                            baseline_gap=baseline_checkpoint_gap,
+                            intervention_gap=checkpoint_gap,
+                            gap_effect=checkpoint_gap - baseline_checkpoint_gap,
+                            normalized_source_progress=checkpoint_progress,
+                        )
+                    )
 
         generated_text = None
         baseline_text = None
@@ -827,6 +921,10 @@ def run_intervention(
         warnings.append("Generation settings were ignored because apply_during_generation=false.")
     if spec.operation.apply_during_generation and spec.generation is not None and spec.evaluator is None:
         warnings.append("Generated continuations were recorded without a behavior evaluator.")
+    if trajectory_summary is not None:
+        warnings.append(
+            "Intervened trajectory overlays localize where a controlled effect becomes decodable; claim status still follows qualification, matched controls, and replication."
+        )
     return InterventionRunSummary(
         science_hash=science_hash,
         parent_run_id=spec.parent_run_id,
@@ -841,6 +939,7 @@ def run_intervention(
             else "direct_structural"
         ),
         qualification_run_id=spec.qualification_run_id,
+        trajectory_run_id=spec.trajectory_run_id,
         model=parent_summary.model,
         observable=parent_summary.observable,
         operation=spec.operation,
@@ -852,6 +951,7 @@ def run_intervention(
             for split in split_values
         },
         observations=tuple(observations),
+        trajectory_overlays=tuple(trajectory_overlays),
         doses=tuple(dose_summaries),
         additivity=tuple(additivity),
         causal_width=tuple(causal_width),

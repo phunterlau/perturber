@@ -778,7 +778,11 @@ class ArtifactRepository:
             run_kind="intervention",
             parent_run_ids=tuple(
                 value
-                for value in (spec.parent_run_id, spec.qualification_run_id)
+                for value in (
+                    spec.parent_run_id,
+                    spec.qualification_run_id,
+                    spec.trajectory_run_id,
+                )
                 if value is not None
             ),
             pair_count=len(summary.pairs),

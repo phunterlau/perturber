@@ -227,11 +227,28 @@ export type InterventionSummary = {
   schema_version: "probe.intervention-result/v1";
   parent_run_id: string;
   rank_run_id?: string | null;
+  trajectory_run_id?: string | null;
   candidate_score_method?: "direct_structural" | "downstream_endpoint_gradient";
   evidence_stage: "causal_intervention";
   logical_forward_passes: number;
   selected_neurons: Array<NeuronScore>;
   observations: Array<Record<string, unknown> & { pair_id: string; split: Split; gap_effect: number }>;
+  trajectory_overlays?: Array<{
+    pair_id: string;
+    split: Split;
+    arm: "selected" | "matched_random";
+    control_sample: number | null;
+    condition: "original" | "perturbed";
+    mode: "ablate" | "amplify" | "patch" | "restore";
+    neuron_count: number;
+    strength: number;
+    layer: number;
+    checkpoint: "block_input" | "post_attention" | "post_ffn";
+    baseline_gap: number;
+    intervention_gap: number;
+    gap_effect: number;
+    normalized_source_progress: number | null;
+  }>;
   doses: Dose[];
   claims: Claim[];
   warnings: string[];

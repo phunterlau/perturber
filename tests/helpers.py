@@ -214,6 +214,33 @@ class FakeAdapter(ModelAdapter):
             tokenized=tokenized,
         )
 
+    def forward_trajectory_intervened(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        edits: tuple[ActivationEdit, ...],
+    ) -> TrajectoryForwardCapture:
+        edited = self.forward_intervened(
+            input_ids, tokenized, capture_position, edits
+        )
+        baseline = self.forward_trajectory_capture(
+            input_ids, tokenized, capture_position
+        )
+        return TrajectoryForwardCapture(
+            logits=edited.logits,
+            checkpoints=tuple(
+                LayerResidualCheckpoints(
+                    layer=item.layer,
+                    block_input=item.block_input,
+                    post_attention=item.post_attention,
+                    post_ffn=edited.logits,
+                )
+                for item in baseline.checkpoints
+            ),
+            tokenized=tokenized,
+        )
+
     def generate(
         self,
         input_ids: torch.Tensor,

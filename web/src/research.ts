@@ -1,6 +1,7 @@
 import type {
   AttentionTraceSummary,
   Dose,
+  InterventionSummary,
   PathObservation,
   RankSpec,
   ResearchCase,
@@ -68,7 +69,7 @@ export function defaultAttentionWorkflow(): ResearchWorkflow {
       methods: ["native_local_readout", "downstream_endpoint_gradient"], top_k: 500, max_backward_passes: 6, execution: execution(6, 100_000_000),
     },
     interventions: [{
-      schema_version: "probe.intervention/v1", kind: "intervention", name: "top-neuron-patch", parent_run_id: "$rank", qualification_run_id: "$qualification",
+      schema_version: "probe.intervention/v1", kind: "intervention", name: "top-neuron-patch", parent_run_id: "$rank", qualification_run_id: "$qualification", trajectory_run_id: "$trajectory",
       selection: { strategy: "ranked_top_k", top_k: 32, sign: "any", min_sign_consistency: 0 }, operation: { mode: "patch", condition: "auto" },
       sweep: { neuron_counts: [1, 4, 16, 32], strengths: [1] }, controls: { samples: 5 }, execution: execution(72, 50_000_000),
     }],
@@ -133,6 +134,45 @@ export function trajectoryRows(summary: TrajectorySummary, pairId: string): Arra
   const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
   if (!pair) return [];
   return pair.checkpoints.map((item, index) => ({ ...item, x: index, label: `L${item.layer} ${checkpointLabel(item.checkpoint)}` }));
+}
+
+export function interventionTrajectoryRows(
+  summary: InterventionSummary,
+  pairId: string,
+): Array<NonNullable<InterventionSummary["trajectory_overlays"]>[number] & { x: number; label: string }> {
+  const selected = (summary.trajectory_overlays ?? []).filter(
+    (item) => item.pair_id === pairId && item.arm === "selected",
+  );
+  if (!selected.length) return [];
+  const neuronCount = Math.max(...selected.map((item) => item.neuron_count));
+  const atWidth = selected.filter((item) => item.neuron_count === neuronCount);
+  const strength = [...new Set(atWidth.map((item) => item.strength))].sort(
+    (a, b) => Math.abs(b) - Math.abs(a) || b - a,
+  )[0];
+  return atWidth
+    .filter((item) => item.strength === strength)
+    .sort((a, b) => a.layer - b.layer || ["block_input", "post_attention", "post_ffn"].indexOf(a.checkpoint) - ["block_input", "post_attention", "post_ffn"].indexOf(b.checkpoint))
+    .map((item, index) => ({ ...item, x: index, label: `L${item.layer} ${checkpointLabel(item.checkpoint)}` }));
+}
+
+export function matchedControlTrajectoryRows(
+  summary: InterventionSummary,
+  pairId: string,
+): Array<{ x: number; label: string; gap_effect: number }> {
+  const selected = interventionTrajectoryRows(summary, pairId);
+  if (!selected.length) return [];
+  const width = selected[0].neuron_count;
+  const strength = selected[0].strength;
+  const groups = new Map<string, number[]>();
+  for (const item of summary.trajectory_overlays ?? []) {
+    if (item.pair_id !== pairId || item.arm !== "matched_random" || item.neuron_count !== width || item.strength !== strength) continue;
+    const key = `${item.layer}:${item.checkpoint}`;
+    groups.set(key, [...(groups.get(key) ?? []), item.gap_effect]);
+  }
+  return selected.flatMap((item, index) => {
+    const values = groups.get(`${item.layer}:${item.checkpoint}`);
+    return values?.length ? [{ x: index, label: item.label, gap_effect: values.reduce((sum, value) => sum + value, 0) / values.length }] : [];
+  });
 }
 
 export function controlledDose(dose: Dose): number {

@@ -230,6 +230,19 @@ class ModelAdapter(ABC):
     ) -> ForwardCapture:
         raise NotImplementedError("the adapter does not support FFN interventions")
 
+    def forward_trajectory_intervened(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        edits: tuple[ActivationEdit, ...],
+    ) -> TrajectoryForwardCapture:
+        """Capture native residual checkpoints during an FFN intervention."""
+
+        raise NotImplementedError(
+            "the adapter does not support intervened trajectory probing"
+        )
+
     def generate(
         self,
         input_ids: torch.Tensor,

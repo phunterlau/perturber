@@ -645,6 +645,29 @@ class QwenAdapter(ModelAdapter):
         tokenized: TokenizedPrompt,
         capture_position: int,
     ) -> TrajectoryForwardCapture:
+        return self._forward_trajectory_capture(
+            input_ids, tokenized, capture_position, edits=()
+        )
+
+    def forward_trajectory_intervened(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        edits: tuple[ActivationEdit, ...],
+    ) -> TrajectoryForwardCapture:
+        return self._forward_trajectory_capture(
+            input_ids, tokenized, capture_position, edits=edits
+        )
+
+    def _forward_trajectory_capture(
+        self,
+        input_ids: torch.Tensor,
+        tokenized: TokenizedPrompt,
+        capture_position: int,
+        *,
+        edits: tuple[ActivationEdit, ...],
+    ) -> TrajectoryForwardCapture:
         sequence_length = int(input_ids.shape[-1])
         resolved_position = (
             capture_position
@@ -660,6 +683,7 @@ class QwenAdapter(ModelAdapter):
         block_inputs: dict[int, torch.Tensor] = {}
         attention_outputs: dict[int, torch.Tensor] = {}
         block_outputs: dict[int, torch.Tensor] = {}
+        edits_by_layer = self._group_edits(edits)
 
         def block_input_hook(layer_index: int):
             def hook(
@@ -698,12 +722,32 @@ class QwenAdapter(ModelAdapter):
 
             return hook
 
+        def activation_edit_hook(layer_index: int):
+            def hook(
+                _module: torch.nn.Module,
+                inputs: tuple[torch.Tensor, ...],
+            ) -> tuple[torch.Tensor, ...] | None:
+                tensor = self._apply_edits(
+                    inputs[0],
+                    position=resolved_position,
+                    edits=edits_by_layer.get(layer_index, ()),
+                )
+                if tensor is inputs[0]:
+                    return None
+                return (tensor, *inputs[1:])
+
+            return hook
+
         with ExitStack() as stack:
             for index, layer in enumerate(self.layers):
                 input_handle = layer.register_forward_pre_hook(block_input_hook(index))
                 output_handle = layer.register_forward_hook(block_output_hook(index))
                 stack.callback(input_handle.remove)
                 stack.callback(output_handle.remove)
+                edit_handle = layer.mlp.down_proj.register_forward_pre_hook(
+                    activation_edit_hook(index)
+                )
+                stack.callback(edit_handle.remove)
                 attention = getattr(layer, "self_attn", None)
                 if attention is not None:
                     attention_handle = attention.register_forward_hook(

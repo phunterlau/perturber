@@ -176,6 +176,43 @@ def test_qwen_adapter_captures_native_residual_trajectory() -> None:
     assert all(not layer._forward_hooks for layer in model.model.layers)
 
 
+def test_qwen_adapter_captures_intervened_native_trajectory_without_leaking_hooks() -> None:
+    model = TinyQwen()
+    adapter = QwenAdapter(
+        model_id="tiny/qwen3",
+        model=model,
+        tokenizer=object(),
+        device=torch.device("cpu"),
+        dtype=torch.float32,
+    )
+    input_ids = torch.tensor([[1, 2]])
+    tokenized = TokenizedPrompt(
+        text="fixture", input_ids=(1, 2), decoded_tokens=("1", "2")
+    )
+    edit = ActivationEdit(
+        layer=0,
+        neurons=(0,),
+        operation="scale",
+        strength=0.0,
+    )
+
+    ordinary = adapter.forward_intervened(input_ids, tokenized, -1, (edit,))
+    trajectory = adapter.forward_trajectory_intervened(
+        input_ids, tokenized, -1, (edit,)
+    )
+
+    torch.testing.assert_close(trajectory.logits, ordinary.logits)
+    torch.testing.assert_close(
+        adapter.decode_residual(trajectory.checkpoints[-1].post_ffn),
+        trajectory.logits,
+    )
+    assert all(not layer._forward_pre_hooks for layer in model.model.layers)
+    assert all(not layer._forward_hooks for layer in model.model.layers)
+    assert all(
+        not layer.mlp.down_proj._forward_pre_hooks for layer in model.model.layers
+    )
+
+
 def test_layer_aware_coupling_matches_small_neuron_finite_difference() -> None:
     model = TinyQwen()
     adapter = QwenAdapter(

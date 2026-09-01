@@ -460,6 +460,7 @@ class InterventionSpec(StrictModel):
     description: str | None = None
     parent_run_id: str
     qualification_run_id: str | None = None
+    trajectory_run_id: str | None = None
     pair_ids: tuple[str, ...] = ()
     include_weak_pairs: bool = False
     selection: NeuronSelectionRequest = Field(default_factory=NeuronSelectionRequest)
@@ -473,7 +474,9 @@ class InterventionSpec(StrictModel):
     execution: ExecutionLimits
     tags: dict[str, str] = Field(default_factory=dict)
 
-    @field_validator("name", "parent_run_id", "qualification_run_id")
+    @field_validator(
+        "name", "parent_run_id", "qualification_run_id", "trajectory_run_id"
+    )
     @classmethod
     def validate_intervention_identity(cls, value: str | None) -> str | None:
         if value is None:
@@ -863,6 +866,14 @@ class ResearchWorkflowSpec(StrictModel):
             if child.qualification_run_id == "$qualification" and self.qualification is None:
                 raise ValueError(
                     "workflow causal stage references '$qualification' but no qualification stage exists"
+                )
+            if child.trajectory_run_id not in {None, "$trajectory"}:
+                raise ValueError(
+                    "workflow intervention trajectory_run_id must be '$trajectory' or null"
+                )
+            if child.trajectory_run_id == "$trajectory" and self.trajectory is None:
+                raise ValueError(
+                    "workflow intervention references '$trajectory' but no trajectory stage exists"
                 )
         for child in self.directions:
             if child.parent_run_id != "$rank":
@@ -1402,6 +1413,23 @@ class InterventionObservation(StrictModel):
     collateral_gap_effects: dict[str, float] = Field(default_factory=dict)
 
 
+class InterventionTrajectoryCheckpoint(StrictModel):
+    pair_id: str
+    split: Literal["discovery", "validation", "heldout"] = "discovery"
+    arm: Literal["selected", "matched_random"]
+    control_sample: int | None = Field(default=None, ge=0)
+    condition: Literal["original", "perturbed"]
+    mode: Literal["ablate", "amplify", "patch", "restore"]
+    neuron_count: PositiveInt
+    strength: float
+    layer: int = Field(ge=0)
+    checkpoint: Literal["block_input", "post_attention", "post_ffn"]
+    baseline_gap: float
+    intervention_gap: float
+    gap_effect: float
+    normalized_source_progress: float | None = None
+
+
 class InterventionDoseSummary(StrictModel):
     split: Literal["discovery", "validation", "heldout"] = "discovery"
     condition: Literal["original", "perturbed"]
@@ -1448,6 +1476,7 @@ class InterventionRunSummary(StrictModel):
         "direct_structural", "downstream_endpoint_gradient"
     ] = "direct_structural"
     qualification_run_id: str | None = None
+    trajectory_run_id: str | None = None
     model: dict[str, Any]
     observable: dict[str, Any]
     operation: InterventionOperationRequest
@@ -1456,6 +1485,7 @@ class InterventionRunSummary(StrictModel):
     pairs: tuple[str, ...]
     split_counts: dict[str, int] = Field(default_factory=dict)
     observations: tuple[InterventionObservation, ...]
+    trajectory_overlays: tuple[InterventionTrajectoryCheckpoint, ...] = ()
     doses: tuple[InterventionDoseSummary, ...]
     additivity: tuple[AdditivityViolation, ...] = ()
     causal_width: tuple[CausalWidthEstimate, ...] = ()

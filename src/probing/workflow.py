@@ -45,6 +45,7 @@ def _resolve_causal_stage(
     rank_run_id: str,
     qualification_run_id: str | None,
     ffn_coupling_run_id: str | None = None,
+    trajectory_run_id: str | None = None,
 ) -> InterventionSpec | DirectionInjectionSpec:
     parent_run_id = rank_run_id
     if isinstance(child, InterventionSpec) and child.parent_run_id == "$ffn_coupling":
@@ -58,6 +59,13 @@ def _resolve_causal_stage(
                 "causal workflow stage requires a completed qualification run"
             )
         updates["qualification_run_id"] = qualification_run_id
+    if (
+        isinstance(child, InterventionSpec)
+        and child.trajectory_run_id == "$trajectory"
+    ):
+        if trajectory_run_id is None:
+            raise ValueError("intervention requires a completed trajectory run")
+        updates["trajectory_run_id"] = trajectory_run_id
     return child.model_copy(update=updates)
 
 
@@ -160,6 +168,7 @@ def resolve_workflow_stage(
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
             ffn_coupling_run_id=run_ids.get("ffn-coupling"),
+            trajectory_run_id=run_ids.get("trajectory"),
         )
     if isinstance(child, AttentionHeadRankSpec):
         return _resolve_attention_rank_stage(
@@ -259,6 +268,7 @@ def run_workflow(
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
             ffn_coupling_run_id=ffn_coupling_run_id,
+            trajectory_run_id=trajectory_run_id,
         )
         assert isinstance(resolved, InterventionSpec)
         outcome = service.execute(
@@ -276,6 +286,7 @@ def run_workflow(
             rank_run_id=rank_run_id,
             qualification_run_id=qualification_run_id,
             ffn_coupling_run_id=ffn_coupling_run_id,
+            trajectory_run_id=trajectory_run_id,
         )
         assert isinstance(resolved, DirectionInjectionSpec)
         outcome = service.execute(

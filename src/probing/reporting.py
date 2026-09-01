@@ -243,6 +243,10 @@ def build_research_report(
             key_results.append(
                 f"Candidate run {parsed.parent_run_id} descends from rank run {parsed.rank_run_id}; both immutable IDs are retained."
             )
+        if parsed.trajectory_overlays:
+            key_results.append(
+                f"Captured {len(parsed.trajectory_overlays)} native checkpoint overlays against trajectory run {parsed.trajectory_run_id}, including selected and matched-random arms."
+            )
         if strongest is not None:
             key_results.append(
                 f"Largest selected-minus-random absolute effect was {_format_effect(strongest.controlled_absolute_effect)} at N={strongest.neuron_count}, strength={strongest.strength:g}, split={strongest.split}, condition={strongest.condition}."

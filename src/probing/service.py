@@ -296,6 +296,45 @@ class ResearchService:
                 "FFN coupling and trajectory must share the same parent rank run"
             )
 
+    def _intervention_trajectory_summary(
+        self,
+        spec: InterventionSpec,
+        *,
+        rank_run_id: str,
+    ) -> TrajectoryRunSummary | None:
+        if spec.trajectory_run_id is None:
+            return None
+        manifest = self.repository.load_manifest(spec.trajectory_run_id)
+        if manifest.run_kind != "trajectory":
+            raise CapabilityError(
+                "intervention trajectory_run_id must reference a trajectory run",
+                details={
+                    "trajectory_run_id": spec.trajectory_run_id,
+                    "run_kind": manifest.run_kind,
+                },
+            )
+        failures = self.repository.verify(spec.trajectory_run_id)
+        if failures:
+            raise CapabilityError(
+                "intervention trajectory artifacts failed integrity verification",
+                details={
+                    "trajectory_run_id": spec.trajectory_run_id,
+                    "failures": failures,
+                },
+            )
+        summary = TrajectoryRunSummary.model_validate(
+            self.repository.load_summary(spec.trajectory_run_id)
+        )
+        if summary.parent_run_id != rank_run_id:
+            raise CapabilityError(
+                "intervention and trajectory must share the same parent rank run",
+                details={
+                    "trajectory_parent_run_id": summary.parent_run_id,
+                    "rank_run_id": rank_run_id,
+                },
+            )
+        return summary
+
     def _attention_intervention_parent(
         self, spec: AttentionTraceSpec
     ) -> tuple[
@@ -581,8 +620,16 @@ class ResearchService:
             pair_count = len(requested)
             required = 2 * pair_count
         elif isinstance(spec, InterventionSpec):
-            _manifest, parent_spec, parent_summary, _candidate_summary = (
+            candidate_manifest, parent_spec, parent_summary, _candidate_summary = (
                 self._intervention_context(spec)
+            )
+            rank_run_id = (
+                _candidate_summary.parent_run_id
+                if _candidate_summary is not None
+                else candidate_manifest.run_id
+            )
+            self._intervention_trajectory_summary(
+                spec, rank_run_id=rank_run_id
             )
             pair_count, required = intervention_plan_counts(
                 parent_spec=parent_spec,
@@ -1128,6 +1175,7 @@ class ResearchService:
             attention_tensors: dict[str, torch.Tensor] | None = None
             ffn_coupling_tensors: dict[str, torch.Tensor] | None = None
             coupling_candidate_summary: FFNCouplingRunSummary | None = None
+            intervention_trajectory_summary: TrajectoryRunSummary | None = None
             intervention_summary: AttentionHeadInterventionRunSummary | None = None
             trace_qualification_statuses: dict[str, str] | None = None
             if isinstance(spec, (AttentionHeadInterventionSpec, AttentionTraceSpec)):
@@ -1171,6 +1219,11 @@ class ResearchService:
                     coupling_candidate_summary.parent_run_id
                     if coupling_candidate_summary is not None
                     else spec.parent_run_id
+                )
+                intervention_trajectory_summary = (
+                    self._intervention_trajectory_summary(
+                        spec, rank_run_id=parent_manifest.run_id
+                    )
                 )
             else:
                 parent_manifest, parent_spec, parent_summary = self._parent_rank(spec)
@@ -1265,6 +1318,7 @@ class ResearchService:
                         science_hash=job.science_hash,
                         qualification_statuses=self._qualification_statuses(spec),
                         candidate_summary=coupling_candidate_summary,
+                        trajectory_summary=intervention_trajectory_summary,
                     )
                 elif isinstance(spec, DirectionInjectionSpec):
                     summary = run_direction_injection(

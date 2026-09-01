@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { AttentionTraceSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
+import type { AttentionTraceSummary, InterventionSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
 import {
   controlledDose,
   defaultAttentionWorkflow,
   isCausalPath,
+  interventionTrajectoryRows,
+  matchedControlTrajectoryRows,
   parseWorkflowYaml,
   serializeWorkflowYaml,
   strongestSelectedPath,
@@ -84,5 +86,14 @@ describe("research workbench view models", () => {
     const summary = { schema_version: "probe.trajectory-result/v1", parent_run_id: "rank", pair_count: 1, logical_forward_passes: 2, pairs: [{ pair_id: "capital", split: "discovery", checkpoints: [checkpoint(0, "block_input", .1), checkpoint(0, "post_attention", .2), checkpoint(0, "post_ffn", .3)], transitions: [], final_pair_delta: .3, warnings: [] }], evidence_stage: "observational_trajectory", claims: [], warnings: [] } satisfies TrajectorySummary;
     expect(trajectoryRows(summary, "capital").map((item) => item.label)).toEqual(["L0 input", "L0 attention", "L0 FFN"]);
     expect(trajectoryRows(summary, "missing")[2].pair_delta).toBe(.3);
+  });
+
+  it("prepares the widest selected intervention overlay without mixing controls", () => {
+    const row = (arm: "selected" | "matched_random", neuronCount: number, layer: number, checkpoint: "block_input" | "post_attention" | "post_ffn", effect: number) => ({ pair_id: "capital", split: "discovery" as const, arm, control_sample: arm === "selected" ? null : 0, condition: "original" as const, mode: "patch" as const, neuron_count: neuronCount, strength: 1, layer, checkpoint, baseline_gap: 0, intervention_gap: effect, gap_effect: effect, normalized_source_progress: effect });
+    const summary = { schema_version: "probe.intervention-result/v1", parent_run_id: "rank", evidence_stage: "causal_intervention", logical_forward_passes: 3, selected_neurons: [], observations: [], doses: [], trajectory_overlays: [row("selected", 1, 0, "post_ffn", .1), row("selected", 4, 0, "post_attention", .2), row("selected", 4, 0, "post_ffn", .3), row("matched_random", 4, 0, "post_ffn", .01)], claims: [], warnings: [] } satisfies InterventionSummary;
+    const rows = interventionTrajectoryRows(summary, "capital");
+    expect(rows.map((item) => item.label)).toEqual(["L0 attention", "L0 FFN"]);
+    expect(rows.map((item) => item.gap_effect)).toEqual([.2, .3]);
+    expect(matchedControlTrajectoryRows(summary, "capital").map((item) => item.gap_effect)).toEqual([.01]);
   });
 });

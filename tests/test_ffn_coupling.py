@@ -36,12 +36,15 @@ def coupling_spec(
     )
 
 
-def coupling_intervention(parent_run_id: str) -> InterventionSpec:
+def coupling_intervention(
+    parent_run_id: str, *, trajectory_run_id: str | None = None
+) -> InterventionSpec:
     return InterventionSpec.model_validate(
         {
             "kind": "intervention",
             "name": "downstream-candidate-ablation",
             "parent_run_id": parent_run_id,
+            "trajectory_run_id": trajectory_run_id,
             "selection": {"strategy": "ranked_top_k", "top_k": 1},
             "operation": {"mode": "ablate", "condition": "perturbed"},
             "sweep": {"neuron_counts": [1], "strengths": [0.0]},
@@ -147,7 +150,9 @@ def test_workflow_resolves_trajectory_and_coupling_lineage(tmp_path) -> None:
     coupling_specification = coupling_spec("$rank").model_copy(
         update={"trajectory_run_id": "$trajectory"}
     )
-    intervention = coupling_intervention("$ffn_coupling")
+    intervention = coupling_intervention(
+        "$ffn_coupling", trajectory_run_id="$trajectory"
+    )
     workflow = ResearchWorkflowSpec(
         name="fixture-trajectory-coupling",
         rank=fake_rank_spec(),
@@ -171,7 +176,18 @@ def test_workflow_resolves_trajectory_and_coupling_lineage(tmp_path) -> None:
     intervention_manifest = service.repository.load_manifest(
         outcome.intervention_run_ids[0]
     )
-    assert intervention_manifest.parent_run_ids == (outcome.ffn_coupling_run_id,)
+    intervention_summary = service.repository.load_summary(
+        outcome.intervention_run_ids[0]
+    )
+    assert intervention_summary["trajectory_run_id"] == outcome.trajectory_run_id
+    assert len(intervention_summary["trajectory_overlays"]) == 3
+    assert {
+        item["checkpoint"] for item in intervention_summary["trajectory_overlays"]
+    } == {"block_input", "post_attention", "post_ffn"}
+    assert intervention_manifest.parent_run_ids == (
+        outcome.ffn_coupling_run_id,
+        outcome.trajectory_run_id,
+    )
 
 
 def test_checked_in_capital_workflow_preserves_boolean_like_tokens() -> None:
