@@ -86,17 +86,24 @@ ranking. A useful run can be promoted into a research case without rerunning it.
 **Research Cases** guide a checkpointed evidence pipeline:
 
 ```text
-Rank -> Behavioral Qualification -> Candidate Circuit
-                                    |-> FFN Intervention -> Direction Control
-                                    `-> Head Ranking -> Head Intervention
-                                                     |-> Token Routes
-                                                     `-> Sender -> Receiver Path
+Rank -> Behavioral Qualification -> Native Trajectory
+                                     -> Researcher-confirmed layer band
+                                     -> Layer-aware FFN coupling
+                                     -> FFN Intervention -> Direction Control
+                                     `-> Head Ranking -> Head Intervention
+                                                      |-> Token Routes
+                                                      `-> Sender -> Receiver Path
 ```
 
 Each stage shows its parents, estimated model calls, artifact budget, seed,
 controls, and gate status before it runs. The UI labels evidence as
 observational, behaviorally qualified, locally causal, or held-out replicated
 from backend results—not from browser-side inference.
+
+The Trajectory view supports metric and checkpoint filters and writes an
+explicitly confirmed layer scope only into an unexecuted FFN draft. The FFN
+view then compares direct, native-local, and downstream-gradient evidence while
+keeping controlled intervention as the causal gate.
 
 ## Headless CLI and agent workflow
 

@@ -96,7 +96,7 @@ export async function cancelJob(jobId: string): Promise<void> {
   await checked(await fetch(`/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`, { method: "POST", headers: headers() }));
 }
 
-export async function loadHandoff(caseId: string): Promise<{ prompt: string; ready_stages: string[] }> {
+export async function loadHandoff(caseId: string): Promise<{ prompt: string; ready_stages: string[]; commands: string[] }> {
   return (await checked(await fetch(`/api/v1/cases/${encodeURIComponent(caseId)}/handoff`, { headers: headers() }))).json();
 }
 

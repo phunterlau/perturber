@@ -166,7 +166,7 @@ export type TrajectorySummary = {
     pair_id: string;
     split: Split;
     checkpoints: TrajectoryCheckpoint[];
-    transitions: Array<{ rank: number; layer: number; checkpoint: TrajectoryCheckpoint["checkpoint"]; pair_delta_change: number; absolute_change: number }>;
+    transitions: Array<{ rank: number; layer: number; checkpoint: TrajectoryCheckpoint["checkpoint"]; pair_delta_change: number; absolute_change: number; reason?: "largest_pair_delta_change" }>;
     final_pair_delta: number;
     warnings: string[];
   }>;

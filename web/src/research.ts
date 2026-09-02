@@ -1,7 +1,10 @@
 import type {
   AttentionTraceSummary,
   Dose,
+  FFNCouplingNeuron,
+  FFNCouplingSummary,
   InterventionSummary,
+  NeuronScore,
   PathObservation,
   RankSpec,
   ResearchCase,
@@ -130,10 +133,130 @@ export const checkpointLabel = (checkpoint: TrajectoryCheckpoint["checkpoint"]):
   post_ffn: "FFN",
 })[checkpoint];
 
+export type TrajectoryMetric = "logit_gap" | "target_probability" | "target_rank" | "entropy" | "forward_kl" | "paired_js" | "total_variation";
+export type TrajectoryCheckpointFilter = "all" | TrajectoryCheckpoint["checkpoint"];
+
+export type TrajectoryMetricView = {
+  rows: Array<TrajectoryCheckpoint & { x: number; label: string }>;
+  series: Array<{ name: string; values: number[]; paired: boolean }>;
+  yTitle: string;
+  lowerIsBetter: boolean;
+};
+
 export function trajectoryRows(summary: TrajectorySummary, pairId: string): Array<TrajectoryCheckpoint & { x: number; label: string }> {
   const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
   if (!pair) return [];
   return pair.checkpoints.map((item, index) => ({ ...item, x: index, label: `L${item.layer} ${checkpointLabel(item.checkpoint)}` }));
+}
+
+export function trajectoryMetricView(
+  summary: TrajectorySummary,
+  pairId: string,
+  metric: TrajectoryMetric,
+  checkpoint: TrajectoryCheckpointFilter = "all",
+): TrajectoryMetricView {
+  const rows = trajectoryRows(summary, pairId)
+    .filter((item) => checkpoint === "all" || item.checkpoint === checkpoint)
+    .map((item, index) => ({ ...item, x: index }));
+  const paired = (original: number[], perturbed: number[]) => [
+    { name: "original", values: original, paired: false },
+    { name: "perturbed", values: perturbed, paired: false },
+    { name: "perturbed − original", values: perturbed.map((value, index) => value - original[index]), paired: true },
+  ];
+  if (metric === "logit_gap") return {
+    rows,
+    series: [
+      { name: "original gap", values: rows.map((item) => item.original_gap), paired: false },
+      { name: "perturbed gap", values: rows.map((item) => item.perturbed_gap), paired: false },
+      { name: "paired Δ", values: rows.map((item) => item.pair_delta), paired: true },
+    ],
+    yTitle: "Target − control logit gap",
+    lowerIsBetter: false,
+  };
+  if (metric === "target_probability") return { rows, series: paired(rows.map((item) => item.original_target_probability), rows.map((item) => item.perturbed_target_probability)), yTitle: "Target-token probability", lowerIsBetter: false };
+  if (metric === "target_rank") return { rows, series: paired(rows.map((item) => item.original_target_rank), rows.map((item) => item.perturbed_target_rank)).slice(0, 2), yTitle: "Target-token rank · lower is better", lowerIsBetter: true };
+  if (metric === "entropy") return { rows, series: paired(rows.map((item) => item.original_entropy), rows.map((item) => item.perturbed_entropy)), yTitle: "Vocabulary entropy", lowerIsBetter: false };
+  if (metric === "forward_kl") return { rows, series: paired(rows.map((item) => item.original_forward_kl_to_final), rows.map((item) => item.perturbed_forward_kl_to_final)).slice(0, 2), yTitle: "Forward KL to final", lowerIsBetter: true };
+  if (metric === "paired_js") return { rows, series: [{ name: "paired JS", values: rows.map((item) => item.paired_js), paired: true }], yTitle: "Paired Jensen−Shannon divergence", lowerIsBetter: false };
+  return { rows, series: [{ name: "paired total variation", values: rows.map((item) => item.paired_total_variation), paired: true }], yTitle: "Paired total variation", lowerIsBetter: false };
+}
+
+export function suggestedTrajectoryBand(
+  summary: TrajectorySummary,
+  pairId: string,
+  padding = 1,
+): number[] {
+  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  if (!pair?.checkpoints.length || !pair.transitions.length) return [];
+  const layers = pair.checkpoints.map((item) => item.layer);
+  const lower = Math.max(Math.min(...layers), pair.transitions[0].layer - padding);
+  const upper = Math.min(Math.max(...layers), pair.transitions[0].layer + padding);
+  return Array.from({ length: upper - lower + 1 }, (_, index) => lower + index);
+}
+
+export function applyConfirmedTrajectoryBand(
+  workflow: ResearchWorkflow,
+  layers: number[],
+  pairId: string,
+): ResearchWorkflow {
+  if (!workflow.ffn_coupling) throw new Error("The workflow has no FFN coupling stage to scope.");
+  const normalized = [...new Set(layers)].sort((a, b) => a - b);
+  if (!normalized.length || normalized.some((layer) => !Number.isInteger(layer) || layer < 0)) {
+    throw new Error("A confirmed FFN layer band must contain non-negative integer layers.");
+  }
+  return {
+    ...workflow,
+    ffn_coupling: {
+      ...workflow.ffn_coupling,
+      layers: normalized,
+      tags: {
+        ...((workflow.ffn_coupling.tags as Record<string, string> | undefined) ?? {}),
+        trajectory_band_confirmation: "researcher",
+        trajectory_band_pair: pairId,
+        trajectory_band_layers: normalized.join(","),
+      },
+    },
+  };
+}
+
+export type CouplingDisagreement = {
+  neuron: FFNCouplingNeuron;
+  downstreamToDirectRatio: number;
+  log10Ratio: number;
+  direction: "downstream_amplified" | "direct_amplified";
+};
+
+export function couplingDisagreements(
+  summary: FFNCouplingSummary,
+  limit = 20,
+): CouplingDisagreement[] {
+  const epsilon = 1e-12;
+  return summary.neurons
+    .map((neuron) => {
+      const ratio = (neuron.downstream_importance_rms + epsilon) / (neuron.direct_importance_rms + epsilon);
+      const log10Ratio = Math.log10(ratio);
+      return { neuron, downstreamToDirectRatio: ratio, log10Ratio, direction: log10Ratio >= 0 ? "downstream_amplified" as const : "direct_amplified" as const };
+    })
+    .sort((left, right) => Math.abs(right.log10Ratio) - Math.abs(left.log10Ratio) || left.neuron.layer - right.neuron.layer || left.neuron.neuron - right.neuron.neuron)
+    .slice(0, limit);
+}
+
+export function resolveNeuronEvidence(
+  rankNeurons: NeuronScore[],
+  couplingNeurons: FFNCouplingNeuron[],
+  selected: string | null,
+): { layer: number; neuron: number; rank?: NeuronScore; coupling?: FFNCouplingNeuron } | null {
+  const fallback = couplingNeurons[0] ?? rankNeurons[0];
+  if (!fallback) return null;
+  const parsed = selected?.split(":").map(Number);
+  const layer = parsed?.length === 2 && parsed.every(Number.isInteger) ? parsed[0] : fallback.layer;
+  const neuron = parsed?.length === 2 && parsed.every(Number.isInteger) ? parsed[1] : fallback.neuron;
+  return {
+    layer,
+    neuron,
+    rank: rankNeurons.find((item) => item.layer === layer && item.neuron === neuron),
+    coupling: couplingNeurons.find((item) => item.layer === layer && item.neuron === neuron),
+  };
 }
 
 export function interventionTrajectoryRows(

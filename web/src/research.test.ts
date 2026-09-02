@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { AttentionTraceSummary, InterventionSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
+import type { AttentionTraceSummary, FFNCouplingSummary, InterventionSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
 import {
+  applyConfirmedTrajectoryBand,
   controlledDose,
+  couplingDisagreements,
   defaultAttentionWorkflow,
   isCausalPath,
   interventionTrajectoryRows,
   matchedControlTrajectoryRows,
   parseWorkflowYaml,
+  resolveNeuronEvidence,
   serializeWorkflowYaml,
   strongestSelectedPath,
+  suggestedTrajectoryBand,
+  trajectoryMetricView,
   trajectoryRows,
 } from "./research";
 
@@ -86,6 +91,36 @@ describe("research workbench view models", () => {
     const summary = { schema_version: "probe.trajectory-result/v1", parent_run_id: "rank", pair_count: 1, logical_forward_passes: 2, pairs: [{ pair_id: "capital", split: "discovery", checkpoints: [checkpoint(0, "block_input", .1), checkpoint(0, "post_attention", .2), checkpoint(0, "post_ffn", .3)], transitions: [], final_pair_delta: .3, warnings: [] }], evidence_stage: "observational_trajectory", claims: [], warnings: [] } satisfies TrajectorySummary;
     expect(trajectoryRows(summary, "capital").map((item) => item.label)).toEqual(["L0 input", "L0 attention", "L0 FFN"]);
     expect(trajectoryRows(summary, "missing")[2].pair_delta).toBe(.3);
+  });
+
+  it("switches trajectory metrics and preserves lower-is-better rank semantics", () => {
+    const checkpoint = (layer: number, name: "block_input" | "post_attention" | "post_ffn", originalRank: number, perturbedRank: number) => ({ layer, checkpoint: name, original_gap: 1, perturbed_gap: 2, pair_delta: 1, original_target_probability: .2, perturbed_target_probability: .3, original_control_probability: .1, perturbed_control_probability: .1, original_entropy: 2, perturbed_entropy: 1.8, original_target_rank: originalRank, perturbed_target_rank: perturbedRank, original_forward_kl_to_final: .1, perturbed_forward_kl_to_final: .05, paired_js: .01, paired_total_variation: .1 });
+    const summary = { schema_version: "probe.trajectory-result/v1", parent_run_id: "rank", pair_count: 1, logical_forward_passes: 2, pairs: [{ pair_id: "capital", split: "discovery", checkpoints: [checkpoint(0, "post_ffn", 20, 10), checkpoint(1, "post_ffn", 8, 2)], transitions: [{ rank: 1, layer: 1, checkpoint: "post_ffn", pair_delta_change: .8, absolute_change: .8, reason: "largest_pair_delta_change" }], final_pair_delta: 1, warnings: [] }], evidence_stage: "observational_trajectory", claims: [], warnings: [] } satisfies TrajectorySummary;
+    const view = trajectoryMetricView(summary, "capital", "target_rank", "post_ffn");
+    expect(view.lowerIsBetter).toBe(true);
+    expect(view.rows.map((item) => item.label)).toEqual(["L0 FFN", "L1 FFN"]);
+    expect(view.series[1].values).toEqual([10, 2]);
+    expect(suggestedTrajectoryBand(summary, "capital")).toEqual([0, 1]);
+  });
+
+  it("records researcher-confirmed trajectory bands in the canonical FFN draft", () => {
+    const updated = applyConfirmedTrajectoryBand(defaultAttentionWorkflow(), [21, 19, 20, 20], "capital");
+    expect(updated.ffn_coupling?.layers).toEqual([19, 20, 21]);
+    expect(updated.ffn_coupling?.tags).toMatchObject({ trajectory_band_confirmation: "researcher", trajectory_band_pair: "capital", trajectory_band_layers: "19,20,21" });
+    expect(() => applyConfirmedTrajectoryBand({ ...defaultAttentionWorkflow(), ffn_coupling: null }, [1], "capital")).toThrow(/no FFN coupling/);
+  });
+
+  it("orders coupling disagreements without merging score definitions", () => {
+    const neuron = (layer: number, index: number, direct: number, downstream: number) => ({ rank: index + 1, layer, neuron: index, activation_delta_mean: 1, direct_coupling: direct, direct_importance_rms: direct, native_coupling_mean: direct, native_importance_mean: direct, native_importance_rms: direct, downstream_coupling_mean: downstream, downstream_importance_mean: downstream, downstream_importance_rms: downstream, downstream_sign_consistency: 1, direct_downstream_sign_agreement: 1 });
+    const summary = { schema_version: "probe.ffn-coupling-result/v1", parent_run_id: "rank", trajectory_run_id: "trajectory", pair_count: 1, candidate_pair_ids: ["capital"], logical_forward_passes: 2, logical_backward_passes: 2, methods: ["native_local_readout", "downstream_endpoint_gradient"], pairs: [], layers: [], neurons: [neuron(1, 0, 1, 2), neuron(2, 1, 1, 20)], total_neuron_count: 2, evidence_stage: "observational_ffn_coupling", claims: [], warnings: [] } satisfies FFNCouplingSummary;
+    const disagreements = couplingDisagreements(summary);
+    expect(disagreements[0].neuron.layer).toBe(2);
+    expect(disagreements[0].direction).toBe("downstream_amplified");
+    expect(disagreements[0].downstreamToDirectRatio).toBeCloseTo(20);
+    const evidence = resolveNeuronEvidence([], summary.neurons, "2:1");
+    expect(evidence).toMatchObject({ layer: 2, neuron: 1 });
+    expect(evidence?.rank).toBeUndefined();
+    expect(evidence?.coupling?.downstream_importance_rms).toBe(20);
   });
 
   it("prepares the widest selected intervention overlay without mixing controls", () => {

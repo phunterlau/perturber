@@ -35,10 +35,25 @@ view contains the head landscape, matched-control dose response, token routes,
 sender/receiver builder, tokenizer alignment preview, and controlled path
 result. Only verified backend claims receive causal styling.
 
+After **Rank** and **Paired trajectory** verify, open **Trajectory** to:
+
+1. filter by split, pair, metric, and block checkpoint;
+2. inspect suggested transitions as observational evidence;
+3. edit the suggested start/end layers;
+4. click **Confirm band and continue to FFN** to scope the still-unexecuted
+   coupling stage; and
+5. review direct-versus-downstream disagreements in **FFN Circuit**.
+
+Confirmation is explicit and auditable: the canonical FFN draft records the
+source pair and selected layers. An already executed coupling stage is immutable,
+so changing its band requires a new case.
+
 Use **Provenance** to inspect immutable run lineage, download a bounded research
 packet, or copy a continuation prompt for another agent. Replay mutation,
 comparison, stability, sensitivity, and bulk export remain CLI-first and their
-commands are included in the packet.
+commands are included in the packet. Commands for bounded trajectory rows,
+transition suggestions, FFN couplings, and method disagreements also appear
+directly in the UI after their runs verify.
 
 Stop the background server when finished:
 

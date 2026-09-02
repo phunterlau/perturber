@@ -1,6 +1,6 @@
 # Native Paired Trajectories and Layer-Aware FFN Coupling
 
-Status: milestones 1-4 implemented and accepted on Qwen3-0.6B/MPS; milestones 5-6 partially complete
+Status: milestones 1-5 implemented and accepted on Qwen3-0.6B/MPS; milestone 6 partially complete
 Target repository: Perturber  
 Primary acceptance model: `Qwen/Qwen3-0.6B` on macOS MPS  
 Scientific boundary: trajectories and coupling scores generate hypotheses;
@@ -352,7 +352,7 @@ machinery. Add bounded inspection commands such as:
 ```text
 probe runs trajectory RUN_ID --pair PAIR_ID --metric logit_gap
 probe runs transitions RUN_ID --split validation --limit 10
-probe runs ffn-couplings RUN_ID --method downstream_gradient --top 20
+probe runs ffn-couplings RUN_ID --method downstream --top 20
 probe runs coupling-compare RUN_ID --top 50
 ```
 

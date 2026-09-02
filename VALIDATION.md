@@ -408,3 +408,35 @@ All original and replay manifests passed digest verification. Full run IDs,
 numerical results, replay identities, interpretation, and limitations are in the
 checked-in [analysis](examples/workflows/language-attention-path-reports/analysis.md)
 and [JSON record](examples/workflows/language-attention-path-reports/results.json).
+
+## Researcher UI trajectory-to-FFN acceptance
+
+The Research Case browser workflow was exercised against the cached pinned
+Qwen3-0.6B model on MPS after the researcher/agent UI milestone. Disposable case
+`20260902T064311-e47a56cce3` completed and verified:
+
+- rank `20260902T064349-b4153ae9b535`;
+- native trajectory `20260902T064413-b08db1888804`; and
+- researcher-scoped FFN coupling `20260902T064512-750865dbc8d0`.
+
+The trajectory UI filtered target rank at post-FFN checkpoints with the axis
+marked lower-is-better. Its strongest capital-pair suggestion was L27/post-FFN
+(`+11.555` paired-gap change); the researcher confirmation control proposed and
+then recorded L26-L27 before coupling ran. The coupling artifact retained only
+`capital` and `arithmetic` as candidate pairs, excluding the held-out science
+pair from ranking.
+
+All four new bounded CLI views ran against the live artifacts and both manifests
+verified. The disagreement view exposed examples that the direct readout alone
+would obscure: L26:n1704 had downstream/direct RMS ratio `215.9` but a small
+absolute downstream RMS (`0.0108`), while L26:n96 was direct-amplified by `22.9`
+with direct RMS `0.5302`. This demonstrates why the UI shows absolute scores,
+ratio, and sign agreement together rather than turning disagreement into a new
+causal ranking.
+
+Browser checks confirmed the metric/checkpoint controls, immutable-band handoff,
+coupling detail selection, exact CLI commands, and zero console warnings or
+errors. Plotly now loads as a deferred 1.08 MB chart chunk; the initial
+application chunk is approximately 351 KB instead of the previous 1.44 MB.
+Evidence remained observational because qualification and matched intervention
+were deliberately not run in this UI acceptance case.
