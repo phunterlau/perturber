@@ -384,9 +384,7 @@ def build_research_packet(
                 [
                     "",
                     f"## {stage.key}",
-                    f"uv run --locked probe runs overview {stage.run_id}",
-                    f"uv run --locked probe runs verify {stage.run_id}",
-                    f"uv run --locked probe report {stage.run_id}",
+                    *_stage_inspection_commands(stage),
                 ]
             )
     commands.extend(
@@ -439,7 +437,36 @@ def agent_handoff(case: ResearchCase) -> dict[str, Any]:
         "prompt": prompt,
         "run_ids": run_ids,
         "ready_stages": next_stages,
+        "commands": [
+            command
+            for stage in case.stages
+            if stage.run_id
+            for command in _stage_inspection_commands(stage)
+        ],
     }
+
+
+def _stage_inspection_commands(stage: ResearchCaseStage) -> tuple[str, ...]:
+    if stage.run_id is None:
+        return ()
+    run_id = stage.run_id
+    specialized: tuple[str, ...] = ()
+    if stage.kind == "trajectory":
+        specialized = (
+            f"uv run --locked probe runs trajectory {run_id} --metric logit_gap --checkpoint all --limit 500",
+            f"uv run --locked probe runs transitions {run_id} --split all --limit 20",
+        )
+    elif stage.kind == "ffn_coupling":
+        specialized = (
+            f"uv run --locked probe runs ffn-couplings {run_id} --method downstream --top 20",
+            f"uv run --locked probe runs coupling-compare {run_id} --top 50",
+        )
+    return (
+        f"uv run --locked probe runs overview {run_id}",
+        *specialized,
+        f"uv run --locked probe runs verify {run_id}",
+        f"uv run --locked probe report {run_id}",
+    )
 
 
 __all__ = [

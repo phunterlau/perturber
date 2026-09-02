@@ -3,7 +3,7 @@ import json
 from typer.testing import CliRunner
 
 from probing import cli
-from probing.contracts import QualificationSpec
+from probing.contracts import FFNCouplingSpec, QualificationSpec, TrajectorySpec
 from test_service import fake_rank_spec, make_service
 
 
@@ -90,6 +90,109 @@ def test_agent_compact_run_and_versioned_evidence_queries(monkeypatch, tmp_path)
     )
     assert job_spec.exit_code == 0
     assert json.loads(job_spec.stdout)["pairs"][0]["id"] == "capital"
+
+
+def test_agent_queries_trajectory_transitions_and_layer_aware_couplings(
+    monkeypatch, tmp_path
+) -> None:
+    service = make_service(tmp_path)
+    rank = service.execute(fake_rank_spec())
+    trajectory = service.execute(
+        TrajectorySpec.model_validate(
+            {
+                "kind": "trajectory",
+                "parent_run_id": rank.manifest.run_id,
+                "transition_limit": 3,
+                "execution": {
+                    "max_forward_passes": 2,
+                    "max_artifact_bytes": 1_000_000,
+                    "seed": 7,
+                },
+            }
+        )
+    )
+    coupling = service.execute(
+        FFNCouplingSpec.model_validate(
+            {
+                "kind": "ffn_coupling",
+                "parent_run_id": rank.manifest.run_id,
+                "trajectory_run_id": trajectory.manifest.run_id,
+                "top_k": 10,
+                "max_backward_passes": 2,
+                "execution": {
+                    "max_forward_passes": 2,
+                    "max_artifact_bytes": 1_000_000,
+                    "seed": 7,
+                },
+            }
+        )
+    )
+    monkeypatch.setattr(cli, "_service", lambda _context: service)
+
+    commands = {
+        "trajectory": [
+            "runs",
+            "trajectory",
+            trajectory.manifest.run_id,
+            "--pair",
+            "capital",
+            "--metric",
+            "target_rank",
+            "--checkpoint",
+            "post_ffn",
+            "--limit",
+            "2",
+        ],
+        "transitions": [
+            "runs",
+            "transitions",
+            trajectory.manifest.run_id,
+            "--split",
+            "discovery",
+            "--limit",
+            "2",
+        ],
+        "couplings": [
+            "runs",
+            "ffn-couplings",
+            coupling.manifest.run_id,
+            "--method",
+            "downstream",
+            "--top",
+            "2",
+        ],
+        "compare": [
+            "runs",
+            "coupling-compare",
+            coupling.manifest.run_id,
+            "--top",
+            "2",
+        ],
+    }
+    responses = {}
+    for name, command in commands.items():
+        result = runner.invoke(
+            cli.app, ["--workspace", str(service.workspace), *command]
+        )
+        assert result.exit_code == 0, f"{name}: {result.output}"
+        responses[name] = json.loads(result.stdout)
+
+    assert responses["trajectory"]["query"] == "trajectory"
+    assert responses["trajectory"]["parameters"]["lower_is_better"] is True
+    assert responses["trajectory"]["returned_count"] == 1
+    assert all(
+        item["checkpoint"] == "post_ffn"
+        for item in responses["trajectory"]["items"]
+    )
+    assert responses["transitions"]["query"] == "transitions"
+    assert responses["transitions"]["matched_count"] >= 1
+    assert responses["couplings"]["query"] == "ffn_couplings"
+    assert responses["couplings"]["items"][0]["method"] == "downstream"
+    assert responses["couplings"]["parameters"]["candidate_pair_ids"] == [
+        "capital"
+    ]
+    assert responses["compare"]["query"] == "coupling_compare"
+    assert "log10_downstream_to_direct" in responses["compare"]["items"][0]
 
 
 def test_compact_result_requires_silent_events(tmp_path) -> None:

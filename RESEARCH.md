@@ -149,6 +149,24 @@ uv run --locked probe runs verify RUN_ID
 uv run --locked probe report RUN_ID
 ```
 
+For native trajectories and layer-aware coupling, keep the response bounded and
+name the score method explicitly:
+
+```bash
+uv run --locked probe runs trajectory TRAJECTORY_RUN \
+  --pair PAIR_ID --metric logit_gap --checkpoint all --limit 500
+uv run --locked probe runs transitions TRAJECTORY_RUN \
+  --split discovery --limit 20
+uv run --locked probe runs ffn-couplings COUPLING_RUN \
+  --method downstream --top 20
+uv run --locked probe runs coupling-compare COUPLING_RUN --top 50
+```
+
+`target_rank` is explicitly marked lower-is-better in the machine response.
+The coupling query accepts `direct`, `native`, or `downstream`; never merge them
+into an unlabeled importance field. Audit `candidate_pair_ids` before trusting a
+coupling query, and inspect absolute RMS values alongside large method ratios.
+
 For each important neuron, retain at least its layer, neuron index, signed
 importance, absolute/RMS importance, sign consistency, and
 `observable_effect`. Do not select neurons solely by one pair's absolute score.

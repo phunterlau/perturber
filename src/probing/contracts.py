@@ -1808,7 +1808,15 @@ class SensitivityReport(StrictModel):
 class QueryEnvelope(StrictModel):
     schema_version: Literal["probe.query/v1"] = "probe.query/v1"
     run_id: str
-    query: Literal["layers", "neurons", "files"]
+    query: Literal[
+        "layers",
+        "neurons",
+        "files",
+        "trajectory",
+        "transitions",
+        "ffn_couplings",
+        "coupling_compare",
+    ]
     parameters: dict[str, Any] = Field(default_factory=dict)
     sort: str | None = None
     source_count: int = Field(ge=0)

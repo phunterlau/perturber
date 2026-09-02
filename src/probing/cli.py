@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib.metadata
 import json
+import math
 from pathlib import Path
 import shutil
 import sys
@@ -1500,6 +1501,308 @@ def runs_neurons(
                 matched_count=matched_count,
                 parameters={"top": top, "layer": layer, "sign": sign},
                 sort="importance_rms:desc,rank:asc",
+            )
+        )
+    except Exception as exc:
+        _fail(exc, machine=True)
+
+
+@runs_app.command("trajectory")
+def runs_trajectory(
+    ctx: typer.Context,
+    run_id: str,
+    pair: Annotated[str | None, typer.Option()] = None,
+    metric: Annotated[
+        Literal[
+            "logit_gap",
+            "target_probability",
+            "target_rank",
+            "entropy",
+            "forward_kl",
+            "paired_js",
+            "total_variation",
+        ],
+        typer.Option(),
+    ] = "logit_gap",
+    checkpoint: Annotated[
+        Literal["all", "block_input", "post_attention", "post_ffn"],
+        typer.Option(),
+    ] = "all",
+    limit: Annotated[int, typer.Option(min=1, max=10_000)] = 500,
+) -> None:
+    from .contracts import TrajectoryRunSummary
+
+    try:
+        summary = TrajectoryRunSummary.model_validate(_summary(_context(ctx), run_id))
+        source_count = sum(len(item.checkpoints) for item in summary.pairs)
+        rows: list[dict[str, Any]] = []
+        for pair_result in summary.pairs:
+            if pair is not None and pair_result.pair_id != pair:
+                continue
+            for item in pair_result.checkpoints:
+                if checkpoint != "all" and item.checkpoint != checkpoint:
+                    continue
+                values: dict[str, float | int]
+                if metric == "logit_gap":
+                    values = {
+                        "original": item.original_gap,
+                        "perturbed": item.perturbed_gap,
+                        "paired_delta": item.pair_delta,
+                    }
+                elif metric == "target_probability":
+                    values = {
+                        "original": item.original_target_probability,
+                        "perturbed": item.perturbed_target_probability,
+                        "paired_delta": item.perturbed_target_probability
+                        - item.original_target_probability,
+                    }
+                elif metric == "target_rank":
+                    values = {
+                        "original": item.original_target_rank,
+                        "perturbed": item.perturbed_target_rank,
+                        "paired_delta": item.perturbed_target_rank
+                        - item.original_target_rank,
+                    }
+                elif metric == "entropy":
+                    values = {
+                        "original": item.original_entropy,
+                        "perturbed": item.perturbed_entropy,
+                        "paired_delta": item.perturbed_entropy
+                        - item.original_entropy,
+                    }
+                elif metric == "forward_kl":
+                    values = {
+                        "original": item.original_forward_kl_to_final,
+                        "perturbed": item.perturbed_forward_kl_to_final,
+                        "paired_delta": item.perturbed_forward_kl_to_final
+                        - item.original_forward_kl_to_final,
+                    }
+                elif metric == "paired_js":
+                    values = {"paired": item.paired_js}
+                else:
+                    values = {"paired": item.paired_total_variation}
+                rows.append(
+                    {
+                        "pair_id": pair_result.pair_id,
+                        "split": pair_result.split,
+                        "layer": item.layer,
+                        "checkpoint": item.checkpoint,
+                        **values,
+                    }
+                )
+        matched_count = len(rows)
+        _dump(
+            query_envelope(
+                run_id=run_id,
+                query="trajectory",
+                items=rows[:limit],
+                source_count=source_count,
+                matched_count=matched_count,
+                parameters={
+                    "pair": pair,
+                    "metric": metric,
+                    "checkpoint": checkpoint,
+                    "limit": limit,
+                    "lower_is_better": metric == "target_rank",
+                },
+                sort="pair:parent,layer:asc,checkpoint:architecture",
+            )
+        )
+    except Exception as exc:
+        _fail(exc, machine=True)
+
+
+@runs_app.command("transitions")
+def runs_transitions(
+    ctx: typer.Context,
+    run_id: str,
+    pair: Annotated[str | None, typer.Option()] = None,
+    split: Annotated[
+        Literal["all", "discovery", "validation", "heldout"], typer.Option()
+    ] = "all",
+    limit: Annotated[int, typer.Option(min=1, max=1000)] = 20,
+) -> None:
+    from .contracts import TrajectoryRunSummary
+
+    try:
+        summary = TrajectoryRunSummary.model_validate(_summary(_context(ctx), run_id))
+        source_count = sum(len(item.transitions) for item in summary.pairs)
+        rows = [
+            {
+                "pair_id": pair_result.pair_id,
+                "split": pair_result.split,
+                **transition.model_dump(mode="json"),
+            }
+            for pair_result in summary.pairs
+            if (pair is None or pair_result.pair_id == pair)
+            and (split == "all" or pair_result.split == split)
+            for transition in pair_result.transitions
+        ]
+        rows.sort(
+            key=lambda item: (
+                -float(item["absolute_change"]),
+                str(item["pair_id"]),
+                int(item["layer"]),
+            )
+        )
+        matched_count = len(rows)
+        _dump(
+            query_envelope(
+                run_id=run_id,
+                query="transitions",
+                items=rows[:limit],
+                source_count=source_count,
+                matched_count=matched_count,
+                parameters={"pair": pair, "split": split, "limit": limit},
+                sort="absolute_change:desc,pair_id:asc,layer:asc",
+            )
+        )
+    except Exception as exc:
+        _fail(exc, machine=True)
+
+
+@runs_app.command("ffn-couplings")
+def runs_ffn_couplings(
+    ctx: typer.Context,
+    run_id: str,
+    method: Annotated[
+        Literal["direct", "native", "downstream"], typer.Option()
+    ] = "downstream",
+    top: Annotated[int, typer.Option(min=1, max=10_000)] = 20,
+    layer: Annotated[int | None, typer.Option(min=0)] = None,
+    sign: Annotated[
+        Literal["any", "positive", "negative"], typer.Option()
+    ] = "any",
+) -> None:
+    from .contracts import FFNCouplingRunSummary
+
+    try:
+        summary = FFNCouplingRunSummary.model_validate(_summary(_context(ctx), run_id))
+        source_count = len(summary.neurons)
+        rows: list[dict[str, Any]] = []
+        for item in summary.neurons:
+            if layer is not None and item.layer != layer:
+                continue
+            if method == "direct":
+                coupling = item.direct_coupling
+                importance = item.activation_delta_mean * item.direct_coupling
+                rms = item.direct_importance_rms
+            elif method == "native":
+                if (
+                    item.native_coupling_mean is None
+                    or item.native_importance_mean is None
+                    or item.native_importance_rms is None
+                ):
+                    continue
+                coupling = item.native_coupling_mean
+                importance = item.native_importance_mean
+                rms = item.native_importance_rms
+            else:
+                coupling = item.downstream_coupling_mean
+                importance = item.downstream_importance_mean
+                rms = item.downstream_importance_rms
+            if sign == "positive" and importance <= 0:
+                continue
+            if sign == "negative" and importance >= 0:
+                continue
+            rows.append(
+                {
+                    "rank": item.rank,
+                    "layer": item.layer,
+                    "neuron": item.neuron,
+                    "method": method,
+                    "activation_delta_mean": item.activation_delta_mean,
+                    "coupling": coupling,
+                    "importance_mean": importance,
+                    "importance_rms": rms,
+                    "downstream_sign_consistency": item.downstream_sign_consistency,
+                    "direct_downstream_sign_agreement": item.direct_downstream_sign_agreement,
+                }
+            )
+        rows.sort(
+            key=lambda item: (
+                -float(item["importance_rms"]),
+                int(item["layer"]),
+                int(item["neuron"]),
+            )
+        )
+        matched_count = len(rows)
+        _dump(
+            query_envelope(
+                run_id=run_id,
+                query="ffn_couplings",
+                items=rows[:top],
+                source_count=source_count,
+                matched_count=matched_count,
+                parameters={
+                    "method": method,
+                    "top": top,
+                    "layer": layer,
+                    "sign": sign,
+                    "candidate_pair_ids": list(summary.candidate_pair_ids),
+                },
+                sort="importance_rms:desc,layer:asc,neuron:asc",
+            )
+        )
+    except Exception as exc:
+        _fail(exc, machine=True)
+
+
+@runs_app.command("coupling-compare")
+def runs_coupling_compare(
+    ctx: typer.Context,
+    run_id: str,
+    top: Annotated[int, typer.Option(min=1, max=10_000)] = 50,
+    layer: Annotated[int | None, typer.Option(min=0)] = None,
+) -> None:
+    from .contracts import FFNCouplingRunSummary
+
+    try:
+        summary = FFNCouplingRunSummary.model_validate(_summary(_context(ctx), run_id))
+        source_count = len(summary.neurons)
+        epsilon = 1e-12
+        rows = [
+            {
+                "rank": item.rank,
+                "layer": item.layer,
+                "neuron": item.neuron,
+                "direct_importance_rms": item.direct_importance_rms,
+                "native_importance_rms": item.native_importance_rms,
+                "downstream_importance_rms": item.downstream_importance_rms,
+                "downstream_to_direct_ratio": (
+                    item.downstream_importance_rms + epsilon
+                )
+                / (item.direct_importance_rms + epsilon),
+                "log10_downstream_to_direct": math.log10(
+                    (item.downstream_importance_rms + epsilon)
+                    / (item.direct_importance_rms + epsilon)
+                ),
+                "direct_downstream_sign_agreement": item.direct_downstream_sign_agreement,
+            }
+            for item in summary.neurons
+            if layer is None or item.layer == layer
+        ]
+        rows.sort(
+            key=lambda item: (
+                -abs(float(item["log10_downstream_to_direct"])),
+                int(item["layer"]),
+                int(item["neuron"]),
+            )
+        )
+        matched_count = len(rows)
+        _dump(
+            query_envelope(
+                run_id=run_id,
+                query="coupling_compare",
+                items=rows[:top],
+                source_count=source_count,
+                matched_count=matched_count,
+                parameters={
+                    "top": top,
+                    "layer": layer,
+                    "candidate_pair_ids": list(summary.candidate_pair_ids),
+                },
+                sort="abs(log10_downstream_to_direct):desc,layer:asc,neuron:asc",
             )
         )
     except Exception as exc:

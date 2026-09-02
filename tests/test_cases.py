@@ -8,10 +8,11 @@ import zipfile
 from fastapi.testclient import TestClient
 import pytest
 
-from probing.cases import ResearchCaseRepository, build_research_packet
+from probing.cases import ResearchCaseRepository, agent_handoff, build_research_packet
 from probing.contracts import (
     ResearchCaseCreate,
     ResearchCaseUpdate,
+    ResearchCaseStage,
     ResearchIntent,
     ResearchWorkflowSpec,
 )
@@ -61,6 +62,37 @@ def test_case_roundtrip_and_executed_stage_is_immutable(tmp_path) -> None:
                 workflow=changed,
             ),
         )
+
+
+def test_agent_handoff_exposes_specialized_bounded_inspection_commands(tmp_path) -> None:
+    repository = ResearchCaseRepository(tmp_path / "workspace")
+    case = repository.create(
+        ResearchCaseCreate(intent=_intent(), workflow=_rank_workflow())
+    )
+    stages = (
+        ResearchCaseStage(
+            key="trajectory",
+            kind="trajectory",
+            name="paired trajectory",
+            spec_hash="0" * 64,
+            status="verified",
+            run_id="trajectory-run",
+        ),
+        ResearchCaseStage(
+            key="ffn-coupling",
+            kind="ffn_coupling",
+            name="coupling",
+            spec_hash="1" * 64,
+            status="verified",
+            run_id="coupling-run",
+        ),
+    )
+    handoff = agent_handoff(case.model_copy(update={"stages": stages}))
+
+    assert any("runs trajectory trajectory-run" in item for item in handoff["commands"])
+    assert any("runs transitions trajectory-run" in item for item in handoff["commands"])
+    assert any("runs ffn-couplings coupling-run" in item for item in handoff["commands"])
+    assert any("runs coupling-compare coupling-run" in item for item in handoff["commands"])
 
 
 def test_case_api_runs_checkpoint_verifies_and_packages_handoff(tmp_path) -> None:
