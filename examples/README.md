@@ -90,6 +90,12 @@ uv run --locked probe workflow \
   --events jsonl
 ```
 
+For a complete workflow that also produces a portable, self-contained
+trajectory figure, use
+[`trajectory-visualization/`](trajectory-visualization/README.md). The example
+keeps observational decoding, controlled patch propagation, and backend claim
+status visually distinct.
+
 Run the attention-path workflow:
 
 ```bash
@@ -154,6 +160,15 @@ uv run --locked probe runs neurons RUN_ID --ranking-objective effect_magnitude -
 uv run --locked probe claims RUN_ID
 uv run --locked probe runs verify RUN_ID
 uv run --locked probe report RUN_ID
+```
+
+Render a verified trajectory together with one or more descendant intervention
+runs as offline HTML/SVG:
+
+```bash
+uv run --locked probe runs trajectory-visualize \
+  TRAJECTORY_RUN_ID INTERVENTION_RUN_ID \
+  --pair PAIR_ID --output trajectory.html
 ```
 
 New multi-pair examples use signed-mean aggregation (`shared_direction`) for

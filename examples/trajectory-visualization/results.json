@@ -1,0 +1,65 @@
+{
+  "schema_version": "probe.trajectory-visualization-example/v1",
+  "recorded_at": "2026-09-02T19:04:25Z",
+  "driver": "driver.yaml",
+  "workflow_id": "20260902T190425-e38f3e07e134",
+  "model": {
+    "id": "Qwen/Qwen3-0.6B",
+    "revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+    "adapter": "qwen3-dense-swiglu-v1",
+    "device": "mps",
+    "dtype": "float16"
+  },
+  "runs": {
+    "rank": "20260902T190351-8876698e795d",
+    "qualification": "20260902T190352-7d949602eda8",
+    "trajectory": "20260902T190355-732284cb6566",
+    "ffn_coupling": "20260902T190357-158c82fa72f8",
+    "direct_patch": "20260902T190406-944e12cd30a6",
+    "downstream_patch": "20260902T190415-8f6ab48ed01a",
+    "overlap_patch": "20260902T190425-9172f068c1fc"
+  },
+  "verification": {
+    "all_visualization_sources_valid": true,
+    "logical_forward_passes": 96,
+    "logical_backward_passes": 6,
+    "candidate_pair_ids": ["capital", "arithmetic"],
+    "heldout_pair_ids": ["science"]
+  },
+  "capital_trajectory": {
+    "final_pair_delta": 23.942530155181885,
+    "largest_transition": {
+      "layer": 27,
+      "checkpoint": "post_ffn",
+      "pair_delta_change": 11.554969787597656
+    },
+    "attention_transition": {
+      "layer": 18,
+      "checkpoint": "post_attention",
+      "pair_delta_change": 7.140819549560547
+    }
+  },
+  "width_16_controlled_effects": [
+    {"method": "direct_structural", "discovery": 8.980574448903402, "heldout": 9.585659662882486},
+    {"method": "downstream_endpoint_gradient", "discovery": 11.276188055674234, "heldout": 11.79543924331665},
+    {"method": "direct_downstream_overlap", "discovery": 10.453931252161661, "heldout": 10.370475769042969}
+  ],
+  "capital_width_16_onset": [
+    {"method": "direct_structural", "layer": 21, "checkpoint": "post_ffn", "effect": 0.976318359375, "final_effect": 10.119141578674316},
+    {"method": "downstream_endpoint_gradient", "layer": 19, "checkpoint": "post_ffn", "effect": 0.8037962913513184, "final_effect": 12.213057518005371},
+    {"method": "direct_downstream_overlap", "layer": 20, "checkpoint": "post_ffn", "effect": 0.496337890625, "final_effect": 11.461280345916748}
+  ],
+  "claims": {
+    "qualification": "supported",
+    "direct_patch": "supported",
+    "downstream_patch": "supported",
+    "overlap_patch": "supported",
+    "heldout_scope": "one predeclared pair"
+  },
+  "visualization": {
+    "file": "trajectory.html",
+    "pair": "capital",
+    "sha256": "fa6e90e16b3a60ca33372a6b1deb8e5d6a25bcfcc908bad7a80bae77fa2655a4",
+    "size_bytes": 28832
+  }
+}
