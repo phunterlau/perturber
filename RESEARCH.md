@@ -165,6 +165,20 @@ uv run --locked probe runs ffn-couplings COUPLING_RUN \
 uv run --locked probe runs coupling-compare COUPLING_RUN --top 50
 ```
 
+Create a portable evidence figure from a verified trajectory and its controlled
+intervention descendants:
+
+```bash
+uv run --locked probe runs trajectory-visualize \
+  TRAJECTORY_RUN DIRECT_PATCH_RUN DOWNSTREAM_PATCH_RUN \
+  --pair PAIR_ID --output trajectory.html
+```
+
+The renderer refuses failed artifact verification, mismatched trajectory
+lineage, incomplete matched-random overlays, and checkpoint misalignment. Its
+first chart remains explicitly observational; causal wording and badges come
+from the immutable intervention claims.
+
 `target_rank` is explicitly marked lower-is-better in the machine response.
 The coupling query accepts `direct`, `native`, or `downstream`; never merge them
 into an unlabeled importance field. Audit `candidate_pair_ids` before trusting a

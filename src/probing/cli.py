@@ -1659,6 +1659,76 @@ def runs_trajectory(
         _fail(exc, machine=True)
 
 
+@runs_app.command("trajectory-visualize")
+def runs_trajectory_visualize(
+    ctx: typer.Context,
+    trajectory_run_id: str,
+    intervention_run_ids: Annotated[
+        list[str], typer.Argument(min=1, help="One or more intervention run IDs.")
+    ],
+    output: Annotated[Path, typer.Option(help="Self-contained HTML output path.")],
+    pair: Annotated[str | None, typer.Option(help="Pair ID; defaults to the first pair.")] = None,
+) -> None:
+    from hashlib import sha256
+
+    from .contracts import InterventionRunSummary, TrajectoryRunSummary
+    from .trajectory_visualization import (
+        render_trajectory_visualization,
+        write_trajectory_visualization,
+    )
+
+    try:
+        context = _context(ctx)
+        run_ids = [trajectory_run_id, *intervention_run_ids]
+        verification: dict[str, bool] = {}
+        for run_id in run_ids:
+            if context.endpoint:
+                from .client import ProbeClient
+
+                report = ProbeClient.from_context(context).verify_run(run_id)
+                failures = tuple(report["failures"])
+            else:
+                failures = ArtifactRepository(context.workspace).verify(run_id)
+            verification[run_id] = not failures
+            if failures:
+                raise ArtifactError(
+                    f"run {run_id!r} failed artifact verification: {', '.join(failures)}"
+                )
+        trajectory = TrajectoryRunSummary.model_validate(
+            _summary(context, trajectory_run_id)
+        )
+        interventions = tuple(
+            (
+                run_id,
+                InterventionRunSummary.model_validate(_summary(context, run_id)),
+            )
+            for run_id in intervention_run_ids
+        )
+        html = render_trajectory_visualization(
+            trajectory_run_id=trajectory_run_id,
+            trajectory=trajectory,
+            intervention_runs=interventions,
+            pair_id=pair,
+        )
+        destination = write_trajectory_visualization(output, html)
+        data = destination.read_bytes()
+        selected_pair = pair or trajectory.pairs[0].pair_id
+        _dump(
+            {
+                "schema_version": "probe.trajectory-visualization-receipt/v1",
+                "trajectory_run_id": trajectory_run_id,
+                "intervention_run_ids": intervention_run_ids,
+                "pair_id": selected_pair,
+                "verified_runs": verification,
+                "output": str(destination),
+                "sha256": sha256(data).hexdigest(),
+                "size_bytes": len(data),
+            }
+        )
+    except Exception as exc:
+        _fail(exc, machine=True)
+
+
 @runs_app.command("transitions")
 def runs_transitions(
     ctx: typer.Context,
