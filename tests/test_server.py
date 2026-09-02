@@ -88,6 +88,12 @@ def test_authenticated_daemon_job_stream_matches_service(tmp_path) -> None:
                     await client.get(f"/api/v1/jobs/{job_id}/spec", headers=headers)
                 ).json()
                 assert saved_spec["pairs"][0]["id"] == "capital"
+                run_spec = (
+                    await client.get(
+                        f"/api/v1/runs/{status['run_id']}/spec", headers=headers
+                    )
+                ).json()
+                assert run_spec == saved_spec
                 verification = await client.get(
                     f"/api/v1/runs/{status['run_id']}/verify", headers=headers
                 )
@@ -136,6 +142,7 @@ def test_authenticated_daemon_job_stream_matches_service(tmp_path) -> None:
                     "/api/v1/jobs/missing",
                     "/api/v1/jobs/missing/events",
                     "/api/v1/runs/missing",
+                    "/api/v1/runs/missing/spec",
                     "/api/v1/runs/missing/summary",
                     "/api/v1/runs/missing/verify",
                 ):

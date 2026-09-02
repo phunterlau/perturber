@@ -23,7 +23,9 @@ Open <http://127.0.0.1:8765/>. The two modes share the same local daemon and
 immutable run store:
 
 - **Quick Probe** runs the original two-prompt FFN ranking workflow. A completed
-  rank run can be promoted into a research case without rerunning it.
+  rank run can be promoted into a research case without rerunning it. Reopened
+  rank runs are promoted from their immutable stored specification, including
+  multi-pair runs, rather than from the currently visible Quick Probe draft.
 - **Research Cases** creates a durable, multi-pair case with discovery,
   validation, and held-out splits. Use **Define** to edit the research contract
   or canonical YAML, then use **Evidence** to review preflight and explicitly
@@ -34,6 +36,17 @@ interventions, and residual-direction controllability. The **Attention Path**
 view contains the head landscape, matched-control dose response, token routes,
 sender/receiver builder, tokenizer alignment preview, and controlled path
 result. Only verified backend claims receive causal styling.
+
+At the top of **FFN Circuit**, choose the ranking question:
+
+- **shared direction · paper** ranks `|mean(I)|` across controlled pairs and is
+  the appropriate view for a common perturbation circuit;
+- **effect magnitude · RMS** ranks `RMS(I)` to surface strong pair-conditional
+  responses, including sign-cancelling candidates.
+
+The objective card reports top-set overlap and how many leading RMS candidates
+have low coherence. Switching views is instant and does not rerun the model.
+The selected objective is carried into new FFN intervention provenance.
 
 After **Rank** and **Paired trajectory** verify, open **Trajectory** to:
 

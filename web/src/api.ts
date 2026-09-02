@@ -56,6 +56,10 @@ export async function loadSummary(runId: string): Promise<EvidenceSummary> {
   return (await checked(await fetch(`/api/v1/runs/${encodeURIComponent(runId)}/summary`, { headers: headers() }))).json();
 }
 
+export async function loadRunSpec(runId: string): Promise<RankSpec> {
+  return (await checked(await fetch(`/api/v1/runs/${encodeURIComponent(runId)}/spec`, { headers: headers() }))).json();
+}
+
 export async function listCases(): Promise<ResearchCase[]> {
   return (await checked(await fetch("/api/v1/cases", { headers: headers() }))).json();
 }

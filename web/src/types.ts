@@ -1,4 +1,5 @@
 export type Split = "discovery" | "validation" | "heldout";
+export type RankingObjective = "shared_direction" | "effect_magnitude";
 
 export type PromptPair = {
   id: string;
@@ -32,7 +33,7 @@ export type RankSpec = {
     decision_position?: 0;
   };
   capture?: { activation: "post_swiglu"; position: number; layers: "all" | number[] };
-  ranking: { top_k: number; select_by?: string; pair_aggregation: string };
+  ranking: { top_k: number; select_by?: string; pair_aggregation: "single_pair" | "signed_mean" | "rms" };
   execution: Record<string, unknown> & {
     max_forward_passes: number;
     max_artifact_bytes: number;
@@ -72,11 +73,15 @@ export type LayerSummary = {
   layer: number;
   signed_mean_sum: number;
   rms_mass: number;
+  absolute_mean_mass?: number | null;
   positive_mean_mass: number;
   negative_mean_mass: number;
   top_10_rms_share: number;
+  top_10_mean_share?: number | null;
   maximum_rms: number;
+  maximum_absolute_mean?: number | null;
   top_neuron: number;
+  top_mean_neuron?: number | null;
   activation_delta_norm_mean: number;
 };
 
@@ -90,7 +95,9 @@ export type NeuronScore = {
   activation_delta_mean: number;
   importance_mean: number;
   importance_rms: number;
+  importance_coherence?: number;
   sign_consistency: number;
+  ranking_objective?: RankingObjective;
   observable_effect?: "toward_target" | "toward_control" | "neutral";
 };
 
@@ -116,7 +123,10 @@ export type RankSummary = {
     warnings: string[];
   }>;
   layers: LayerSummary[];
+  ranking_objective?: RankingObjective;
   neurons: NeuronScore[];
+  shared_direction_neurons?: NeuronScore[];
+  effect_magnitude_neurons?: NeuronScore[];
   total_neuron_count: number;
   measured_delta_mean: number;
   predicted_delta_mean: number;
@@ -181,6 +191,7 @@ export type FFNCouplingNeuron = {
   neuron: number;
   activation_delta_mean: number;
   direct_coupling: number;
+  direct_importance_mean?: number;
   direct_importance_rms: number;
   native_coupling_mean: number | null;
   native_importance_mean: number | null;
@@ -188,6 +199,7 @@ export type FFNCouplingNeuron = {
   downstream_coupling_mean: number;
   downstream_importance_mean: number;
   downstream_importance_rms: number;
+  downstream_importance_coherence?: number;
   downstream_sign_consistency: number;
   direct_downstream_sign_agreement: number;
 };
@@ -202,8 +214,11 @@ export type FFNCouplingSummary = {
   logical_backward_passes: number;
   methods: string[];
   pairs: Array<{ pair_id: string; split: Split; original_gradient_norm_mean: number; perturbed_gradient_norm_mean: number }>;
-  layers: Array<{ layer: number; downstream_rms_mass: number; native_rms_mass: number | null; direct_rms_mass: number; top_neuron: number }>;
+  layers: Array<{ layer: number; downstream_rms_mass: number; downstream_absolute_mean_mass?: number | null; native_rms_mass: number | null; native_absolute_mean_mass?: number | null; direct_rms_mass: number; direct_absolute_mean_mass?: number | null; top_neuron: number; top_shared_neuron?: number | null }>;
+  ranking_objective?: RankingObjective;
   neurons: FFNCouplingNeuron[];
+  shared_direction_neurons?: FFNCouplingNeuron[];
+  effect_magnitude_neurons?: FFNCouplingNeuron[];
   total_neuron_count: number;
   evidence_stage: "observational_ffn_coupling";
   claims: Claim[];
@@ -230,6 +245,7 @@ export type InterventionSummary = {
   rank_run_id?: string | null;
   trajectory_run_id?: string | null;
   candidate_score_method?: "direct_structural" | "downstream_endpoint_gradient" | "direct_downstream_overlap";
+  candidate_ranking_objective?: RankingObjective;
   evidence_stage: "causal_intervention";
   logical_forward_passes: number;
   selected_neurons: Array<NeuronScore>;

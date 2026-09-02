@@ -428,6 +428,10 @@ def create_app(
     def run_manifest(run_id: str):
         return service.repository.load_manifest(run_id)
 
+    @application.get("/api/v1/runs/{run_id}/spec", dependencies=[auth])
+    def run_spec(run_id: str) -> ExperimentSpec:
+        return service.repository.load_run_spec(run_id)
+
     @application.get("/api/v1/runs/{run_id}/summary", dependencies=[auth])
     def run_summary(run_id: str):
         return service.repository.load_summary(run_id)

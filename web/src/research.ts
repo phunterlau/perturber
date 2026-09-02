@@ -7,9 +7,11 @@ import type {
   NeuronScore,
   PathObservation,
   RankSpec,
+  RankSummary,
   ResearchCase,
   ResearchIntent,
   ResearchWorkflow,
+  RankingObjective,
   TrajectoryCheckpoint,
   TrajectorySummary,
 } from "./types";
@@ -50,7 +52,7 @@ export function defaultAttentionWorkflow(): ResearchWorkflow {
       { id: "science", split: "heldout", original: "At what temperature does pure water freeze? Answer in English.", perturbed: "纯水在什么温度结冰？请用中文回答。", metadata: { perturbation_family: "language-routing" } },
     ],
     observable: { name: "language:chinese-minus-english", target_tokens: ["的", "是", "我", "这", "在"], control_tokens: ["The", "It", "This", "A", "I"] },
-    ranking: { top_k: 500, pair_aggregation: "rms" },
+    ranking: { top_k: 500, pair_aggregation: "signed_mean" },
     execution: execution(6, 100_000_000),
     tags: { paper_case: "EN-vs-ZH", surface: "research-case-web" },
   };
@@ -69,7 +71,7 @@ export function defaultAttentionWorkflow(): ResearchWorkflow {
     },
     ffn_coupling: {
       schema_version: "probe.ffn-coupling/v1", kind: "ffn_coupling", name: "language-layer-aware-ffn", parent_run_id: "$rank", trajectory_run_id: "$trajectory",
-      methods: ["native_local_readout", "downstream_endpoint_gradient"], top_k: 500, max_backward_passes: 6, execution: execution(6, 100_000_000),
+      methods: ["native_local_readout", "downstream_endpoint_gradient"], ranking_objective: "shared_direction", top_k: 500, max_backward_passes: 6, execution: execution(6, 100_000_000),
     },
     interventions: [{
       schema_version: "probe.intervention/v1", kind: "intervention", name: "top-neuron-patch", parent_run_id: "$rank", qualification_run_id: "$qualification", trajectory_run_id: "$trajectory",
@@ -239,6 +241,48 @@ export function couplingDisagreements(
     })
     .sort((left, right) => Math.abs(right.log10Ratio) - Math.abs(left.log10Ratio) || left.neuron.layer - right.neuron.layer || left.neuron.neuron - right.neuron.neuron)
     .slice(0, limit);
+}
+
+export const rankingObjectiveLabel = (objective: RankingObjective): string =>
+  objective === "shared_direction" ? "Shared direction · |mean I|" : "Effect magnitude · RMS(I)";
+
+export function rankedNeurons(
+  summary: RankSummary,
+  objective: RankingObjective,
+): NeuronScore[] {
+  const view = objective === "shared_direction"
+    ? summary.shared_direction_neurons
+    : summary.effect_magnitude_neurons;
+  const parentObjective = summary.ranking_objective ?? "effect_magnitude";
+  return view ?? (parentObjective === objective ? summary.neurons : []);
+}
+
+export function rankedCouplingNeurons(
+  summary: FFNCouplingSummary,
+  objective: RankingObjective,
+): FFNCouplingNeuron[] {
+  const view = objective === "shared_direction"
+    ? summary.shared_direction_neurons
+    : summary.effect_magnitude_neurons;
+  const parentObjective = summary.ranking_objective ?? "effect_magnitude";
+  return view ?? (parentObjective === objective ? summary.neurons : []);
+}
+
+export function rankingComparison(summary: RankSummary, limit = 50, coherenceThreshold = 0.5) {
+  const shared = rankedNeurons(summary, "shared_direction").slice(0, limit);
+  const magnitude = rankedNeurons(summary, "effect_magnitude").slice(0, limit);
+  const comparable = shared.length > 0 && magnitude.length > 0;
+  const sharedKeys = new Set(shared.map((item) => `${item.layer}:${item.neuron}`));
+  const overlap = magnitude.filter((item) => sharedKeys.has(`${item.layer}:${item.neuron}`)).length;
+  const cancellationCandidates = comparable
+    ? magnitude.filter((item) => (item.importance_coherence ?? 1) < coherenceThreshold).length
+    : null;
+  return {
+    limit,
+    overlap,
+    overlapFraction: comparable ? overlap / Math.min(shared.length, magnitude.length) : null,
+    cancellationCandidates,
+  };
 }
 
 export function resolveNeuronEvidence(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AttentionTraceSummary, FFNCouplingSummary, InterventionSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
+import type { AttentionTraceSummary, FFNCouplingSummary, InterventionSummary, RankSummary, ResearchCase, ResearchCaseStage, TrajectorySummary } from "./types";
 import {
   applyConfirmedTrajectoryBand,
   controlledDose,
@@ -9,6 +9,8 @@ import {
   interventionTrajectoryRows,
   matchedControlTrajectoryRows,
   parseWorkflowYaml,
+  rankedNeurons,
+  rankingComparison,
   resolveNeuronEvidence,
   serializeWorkflowYaml,
   strongestSelectedPath,
@@ -64,6 +66,16 @@ describe("research workbench view models", () => {
     const workflow = defaultAttentionWorkflow();
     expect(parseWorkflowYaml(serializeWorkflowYaml(workflow))).toEqual(workflow);
     expect(() => parseWorkflowYaml("schema_version: wrong")).toThrow(/probe.workflow\/v1/);
+  });
+
+  it("keeps shared-direction and RMS rankings selectable without relabeling either", () => {
+    const neuron = (layer: number, index: number, mean: number, rms: number, coherence: number) => ({ rank: index + 1, layer, neuron: index, coupling: 1, original_activation_mean: 0, perturbed_activation_mean: mean, activation_delta_mean: mean, importance_mean: mean, importance_rms: rms, importance_coherence: coherence, sign_consistency: coherence });
+    const shared = [neuron(1, 0, 6, 6, 1), neuron(2, 1, 5, 5, 1)];
+    const magnitude = [neuron(3, 2, 0, 10, 0), shared[0]];
+    const summary = { schema_version: "probe.rank-result/v1", science_hash: "hash", pair_count: 2, logical_forward_passes: 4, model: {}, observable: {}, pairs: [], layers: [], ranking_objective: "shared_direction", neurons: shared, shared_direction_neurons: shared, effect_magnitude_neurons: magnitude, total_neuron_count: 3, measured_delta_mean: 1, predicted_delta_mean: 1, ffn_skip_mean: 0, evidence_stage: "replicated_ranking", claims: [], warnings: [] } satisfies RankSummary;
+    expect(rankedNeurons(summary, "shared_direction")[0]).toMatchObject({ layer: 1, neuron: 0 });
+    expect(rankedNeurons(summary, "effect_magnitude")[0]).toMatchObject({ layer: 3, neuron: 2 });
+    expect(rankingComparison(summary, 2)).toMatchObject({ overlap: 1, overlapFraction: .5, cancellationCandidates: 1 });
   });
 
   it("calculates controlled dose without hiding the matched control", () => {
