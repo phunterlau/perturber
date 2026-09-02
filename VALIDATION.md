@@ -46,6 +46,8 @@ Coverage includes:
 - target-minus-control logit-gap direction;
 - signed `I = c * delta_a` ranking and layer aggregation;
 - full-tensor multi-pair mean, RMS, and sign-consistency aggregation;
+- dual multi-pair FFN ranking views: paper-faithful `|mean(I)|` shared direction
+  and `RMS(I)` effect magnitude, plus coherence and objective provenance;
 - FFN/Skip computation and empirical regime labels;
 - two logical forward passes per pair and hook cleanup;
 - strict finite spec constraints, duplicate JSON/YAML key rejection, and budget

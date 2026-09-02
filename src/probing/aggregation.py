@@ -11,6 +11,7 @@ from .contracts import (
     ClaimRecord,
     PairResultSummary,
     QualificationAggregate,
+    RankingObjective,
     RankRunSummary,
 )
 from .engine import ProbeAnalysis
@@ -31,6 +32,7 @@ def aggregate_analyses(
     analyses: tuple[ProbeAnalysis, ...],
     top_k: int,
     pair_splits: tuple[str, ...] | None = None,
+    pair_aggregation: str = "signed_mean",
 ) -> AggregateComputation:
     if not analyses or len(analyses) != len(pair_ids):
         raise ValueError("pair IDs and analyses must be non-empty and aligned")
@@ -43,6 +45,13 @@ def aggregate_analyses(
     if not ranking_indices:
         raise ValueError("at least one discovery pair is required for neuron ranking")
     ranking_analyses = tuple(analyses[index] for index in ranking_indices)
+    if pair_aggregation not in {"single_pair", "signed_mean", "rms"}:
+        raise ValueError(f"unsupported pair aggregation {pair_aggregation!r}")
+    if len(ranking_analyses) > 1 and pair_aggregation == "single_pair":
+        raise ValueError("multiple discovery pairs require signed_mean or rms aggregation")
+    ranking_objective: RankingObjective = (
+        "shared_direction" if pair_aggregation == "signed_mean" else "effect_magnitude"
+    )
 
     layer_count = len(analyses[0].importance_by_layer)
     first = analyses[0]
@@ -114,6 +123,11 @@ def aggregate_analyses(
 
         importance_mean = importance.mean(dim=0)
         importance_rms = torch.sqrt(torch.mean(importance.square(), dim=0))
+        importance_coherence = torch.where(
+            importance_rms > 0,
+            importance_mean.abs() / importance_rms,
+            torch.zeros_like(importance_rms),
+        ).clamp(max=1.0)
         mean_sign = torch.sign(importance_mean)
         matching = (torch.sign(importance) == mean_sign.unsqueeze(0)).float()
         consistency = matching.mean(dim=0)
@@ -123,9 +137,13 @@ def aggregate_analyses(
         delta_mean = delta.mean(dim=0)
 
         rms_mass = float(importance_rms.sum().item())
+        absolute_mean = importance_mean.abs()
+        absolute_mean_mass = float(absolute_mean.sum().item())
         top_count = min(10, importance_rms.numel())
         top_mass = float(torch.topk(importance_rms, top_count).values.sum().item())
         top_neuron = int(torch.argmax(importance_rms).item())
+        top_mean_mass = float(torch.topk(absolute_mean, top_count).values.sum().item())
+        top_mean_neuron = int(torch.argmax(absolute_mean).item())
         layers.append(
             AggregateLayerSummary(
                 layer=layer,
@@ -139,6 +157,12 @@ def aggregate_analyses(
                 activation_delta_norm_mean=fmean(
                     float(torch.linalg.vector_norm(row).item()) for row in delta
                 ),
+                absolute_mean_mass=absolute_mean_mass,
+                top_10_mean_share=(
+                    top_mean_mass / absolute_mean_mass if absolute_mean_mass else 0.0
+                ),
+                maximum_absolute_mean=float(absolute_mean[top_mean_neuron].item()),
+                top_mean_neuron=top_mean_neuron,
             )
         )
 
@@ -151,6 +175,7 @@ def aggregate_analyses(
         delta_mean_by_layer.append(delta_mean)
         tensors[f"importance_mean.layer_{layer}"] = importance_mean.contiguous()
         tensors[f"importance_rms.layer_{layer}"] = importance_rms.contiguous()
+        tensors[f"importance_coherence.layer_{layer}"] = importance_coherence.contiguous()
         tensors[f"sign_consistency.layer_{layer}"] = consistency.contiguous()
         tensors[f"coupling.layer_{layer}"] = coupling.contiguous()
         tensors[f"activation_delta_mean.layer_{layer}"] = delta_mean.contiguous()
@@ -167,32 +192,55 @@ def aggregate_analyses(
     for values in rms_by_layer:
         offsets.append(total)
         total += values.numel()
-    flattened = torch.cat(rms_by_layer)
     chosen = min(max(1, top_k), total)
-    flat_indices = torch.argsort(
-        flattened, descending=True, stable=True
+    shared_indices = torch.argsort(
+        torch.cat(mean_by_layer).abs(), descending=True, stable=True
+    )[:chosen].tolist()
+    magnitude_indices = torch.argsort(
+        torch.cat(rms_by_layer), descending=True, stable=True
     )[:chosen].tolist()
 
-    neurons: list[AggregateNeuronScore] = []
-    for rank, flat_index in enumerate(flat_indices, start=1):
-        layer = max(index for index, offset in enumerate(offsets) if offset <= flat_index)
-        neuron = flat_index - offsets[layer]
-        neurons.append(
-            AggregateNeuronScore(
-                rank=rank,
-                layer=layer,
-                neuron=neuron,
-                coupling=float(coupling_by_layer[layer][neuron].item()),
-                original_activation_mean=float(original_mean_by_layer[layer][neuron].item()),
-                perturbed_activation_mean=float(
-                    perturbed_mean_by_layer[layer][neuron].item()
-                ),
-                activation_delta_mean=float(delta_mean_by_layer[layer][neuron].item()),
-                importance_mean=float(mean_by_layer[layer][neuron].item()),
-                importance_rms=float(rms_by_layer[layer][neuron].item()),
-                sign_consistency=float(consistency_by_layer[layer][neuron].item()),
+    def build_neurons(flat_indices: list[int]) -> tuple[AggregateNeuronScore, ...]:
+        neurons: list[AggregateNeuronScore] = []
+        for rank, flat_index in enumerate(flat_indices, start=1):
+            layer = max(
+                index for index, offset in enumerate(offsets) if offset <= flat_index
             )
-        )
+            neuron = flat_index - offsets[layer]
+            mean = float(mean_by_layer[layer][neuron].item())
+            rms = float(rms_by_layer[layer][neuron].item())
+            neurons.append(
+                AggregateNeuronScore(
+                    rank=rank,
+                    layer=layer,
+                    neuron=neuron,
+                    coupling=float(coupling_by_layer[layer][neuron].item()),
+                    original_activation_mean=float(
+                        original_mean_by_layer[layer][neuron].item()
+                    ),
+                    perturbed_activation_mean=float(
+                        perturbed_mean_by_layer[layer][neuron].item()
+                    ),
+                    activation_delta_mean=float(
+                        delta_mean_by_layer[layer][neuron].item()
+                    ),
+                    importance_mean=mean,
+                    importance_rms=rms,
+                    sign_consistency=float(
+                        consistency_by_layer[layer][neuron].item()
+                    ),
+                    importance_coherence=(min(1.0, abs(mean) / rms) if rms else 0.0),
+                )
+            )
+        return tuple(neurons)
+
+    shared_direction_neurons = build_neurons(shared_indices)
+    effect_magnitude_neurons = build_neurons(magnitude_indices)
+    neurons = (
+        effect_magnitude_neurons
+        if ranking_objective == "effect_magnitude"
+        else shared_direction_neurons
+    )
 
     qualifications = tuple(
         qualify_pair_logits(
@@ -245,6 +293,13 @@ def aggregate_analyses(
         warning_values.append(
             "Neuron ranking uses discovery pairs only; validation and held-out pairs are retained for separate evaluation."
         )
+    warning_values.append(
+        "Candidate order uses absolute signed-mean importance across discovery pairs; "
+        "RMS remains a prompt-conditional magnitude diagnostic."
+        if ranking_objective == "shared_direction"
+        else "Candidate order uses RMS effect magnitude and can prioritize sign-varying "
+        "prompt-conditional neurons; use signed_mean for the paper-faithful shared circuit."
+    )
     warnings = tuple(warning_values)
     first_result = analyses[0].result
     ffn_skip_mean = fmean(finite_ratios) if finite_ratios else None
@@ -288,7 +343,11 @@ def aggregate_analyses(
             claim_id="replicated-ranking",
             claim_type="replicated_ranking",
             status=("supported" if discovery_informative >= 2 else "blocked"),
-            statement="The signed ranking was aggregated across prompt pairs.",
+            statement=(
+                "Neurons were ranked by absolute signed-mean importance across prompt pairs."
+                if ranking_objective == "shared_direction"
+                else "Neurons were ranked by RMS effect magnitude across prompt pairs."
+            ),
             limitations=(
                 "Replication is observational until controlled intervention.",
                 "Only informative pairs support the aggregate claim.",
@@ -326,7 +385,10 @@ def aggregate_analyses(
         },
         pairs=pair_summaries,
         layers=tuple(layers),
-        neurons=tuple(neurons),
+        neurons=neurons,
+        ranking_objective=ranking_objective,
+        shared_direction_neurons=shared_direction_neurons,
+        effect_magnitude_neurons=effect_magnitude_neurons,
         total_neuron_count=total,
         measured_delta_mean=fmean(
             item.result.measured_delta for item in ranking_analyses

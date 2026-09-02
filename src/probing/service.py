@@ -991,6 +991,7 @@ class ResearchService:
                 analyses=tuple(analyses),
                 top_k=spec.ranking.top_k,
                 pair_splits=tuple(pair.split for pair in spec.pairs),
+                pair_aggregation=spec.ranking.pair_aggregation,
             )
             for warning in aggregate.summary.warnings:
                 emitter.emit("warning", message=warning)

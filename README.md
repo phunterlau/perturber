@@ -127,11 +127,20 @@ Inspect a completed run without loading the model again:
 ```bash
 uv run --locked probe runs list
 uv run --locked probe runs overview RUN_ID
-uv run --locked probe runs neurons RUN_ID --top 20
+uv run --locked probe runs neurons RUN_ID --ranking-objective shared_direction --top 20
+uv run --locked probe runs neurons RUN_ID --ranking-objective effect_magnitude --top 20
 uv run --locked probe claims RUN_ID
 uv run --locked probe runs verify RUN_ID
 uv run --locked probe report RUN_ID
 ```
+
+Multi-pair FFN runs retain two views from the same captures. `shared_direction`
+ranks by `|mean(I)|` across prompt pairs and is the paper-faithful default for
+new research examples. `effect_magnitude` ranks by `RMS(I)` and is useful for
+finding strong prompt-conditional neurons, including candidates whose signs
+cancel across pairs. Inspect coherence (`|mean(I)| / RMS(I)`) before treating a
+large RMS score as a shared circuit. Existing replay bundles keep their
+recorded objective and are not silently rewritten.
 
 For a multi-stage, model-reusing workflow with symbolic parent references:
 

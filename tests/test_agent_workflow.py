@@ -62,6 +62,24 @@ def test_agent_compact_run_and_versioned_evidence_queries(monkeypatch, tmp_path)
             "--sign",
             "positive",
         ],
+        "neurons_shared": [
+            "runs",
+            "neurons",
+            run_id,
+            "--top",
+            "1",
+            "--ranking-objective",
+            "shared_direction",
+        ],
+        "neurons_magnitude": [
+            "runs",
+            "neurons",
+            run_id,
+            "--top",
+            "1",
+            "--ranking-objective",
+            "effect_magnitude",
+        ],
         "files": ["runs", "files", run_id],
         "verify": ["runs", "verify", run_id],
     }
@@ -79,6 +97,14 @@ def test_agent_compact_run_and_versioned_evidence_queries(monkeypatch, tmp_path)
     assert responses["layers"]["sort"] == "rms_mass:desc,layer:asc"
     assert responses["neurons"]["parameters"]["sign"] == "positive"
     assert responses["neurons"]["items"][0]["observable_effect"] == "toward_target"
+    assert (
+        responses["neurons_shared"]["sort"]
+        == "absolute_importance_mean:desc,rank:asc"
+    )
+    assert (
+        responses["neurons_magnitude"]["sort"]
+        == "importance_rms:desc,rank:asc"
+    )
     assert responses["files"]["returned_count"] == 7
     assert responses["verify"]["schema_version"] == "probe.verification/v1"
     assert responses["verify"]["valid"] is True

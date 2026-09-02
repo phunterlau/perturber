@@ -177,19 +177,27 @@ def rank_stability(
             seen.add(first)
             first_values = matrix[list(first)]
             second_values = matrix[list(second)]
-            first_rms = torch.sqrt(first_values.square().mean(dim=0))
-            second_rms = torch.sqrt(second_values.square().mean(dim=0))
+            first_mean = first_values.mean(dim=0)
+            second_mean = second_values.mean(dim=0)
+            first_score = (
+                first_mean.abs()
+                if summary.ranking_objective == "shared_direction"
+                else torch.sqrt(first_values.square().mean(dim=0))
+            )
+            second_score = (
+                second_mean.abs()
+                if summary.ranking_objective == "shared_direction"
+                else torch.sqrt(second_values.square().mean(dim=0))
+            )
             first_top = set(
-                torch.argsort(first_rms, descending=True, stable=True)[:effective_top_n].tolist()
+                torch.argsort(first_score, descending=True, stable=True)[:effective_top_n].tolist()
             )
             second_top = set(
-                torch.argsort(second_rms, descending=True, stable=True)[:effective_top_n].tolist()
+                torch.argsort(second_score, descending=True, stable=True)[:effective_top_n].tolist()
             )
             shared = first_top & second_top
             overlaps.append(len(shared) / effective_top_n)
             if shared:
-                first_mean = first_values.mean(dim=0)
-                second_mean = second_values.mean(dim=0)
                 sign_agreements.append(
                     sum(
                         int(torch.sign(first_mean[index]).item())
@@ -202,6 +210,9 @@ def rank_stability(
                 sign_agreements.append(0.0)
     else:
         warnings.append("Split-half stability requires at least two prompt pairs.")
+    warnings.append(
+        f"Split-half top-k sets use the run's {summary.ranking_objective} objective."
+    )
 
     layer_offsets: dict[int, int] = {}
     offset = 0

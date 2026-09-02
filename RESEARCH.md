@@ -141,8 +141,9 @@ Query compact slices first:
 ```bash
 uv run --locked probe runs overview RUN_ID
 uv run --locked probe runs layers RUN_ID --top 10
-uv run --locked probe runs neurons RUN_ID --top 20 --sign positive
-uv run --locked probe runs neurons RUN_ID --top 20 --sign negative
+uv run --locked probe runs neurons RUN_ID --ranking-objective shared_direction --top 20 --sign positive
+uv run --locked probe runs neurons RUN_ID --ranking-objective shared_direction --top 20 --sign negative
+uv run --locked probe runs neurons RUN_ID --ranking-objective effect_magnitude --top 20
 uv run --locked probe claims RUN_ID
 uv run --locked probe runs files RUN_ID
 uv run --locked probe runs verify RUN_ID
@@ -158,7 +159,9 @@ uv run --locked probe runs trajectory TRAJECTORY_RUN \
 uv run --locked probe runs transitions TRAJECTORY_RUN \
   --split discovery --limit 20
 uv run --locked probe runs ffn-couplings COUPLING_RUN \
-  --method downstream --top 20
+  --method downstream --ranking-objective shared_direction --top 20
+uv run --locked probe runs ffn-couplings COUPLING_RUN \
+  --method downstream --ranking-objective effect_magnitude --top 20
 uv run --locked probe runs coupling-compare COUPLING_RUN --top 50
 ```
 
@@ -166,6 +169,20 @@ uv run --locked probe runs coupling-compare COUPLING_RUN --top 50
 The coupling query accepts `direct`, `native`, or `downstream`; never merge them
 into an unlabeled importance field. Audit `candidate_pair_ids` before trusting a
 coupling query, and inspect absolute RMS values alongside large method ratios.
+
+For multi-pair FFN research, name the selection objective explicitly:
+
+- `shared_direction` orders by `|mean(I)|`. This matches the paper's actual
+  neuron-selection implementation, despite the algorithm prose describing RMS,
+  and asks which components support a common signed perturbation direction.
+- `effect_magnitude` orders by `RMS(I)`. Use it as a heterogeneity discovery
+  view for components that are strong on individual pairs but may reverse sign.
+
+Both lists are stored from one capture pass. Compare their overlap and retain
+coherence `|mean(I)| / RMS(I)`; low coherence warns that an RMS-leading neuron
+is not a shared directional explanation. An intervention must record which
+objective supplied its candidates. Do not switch objectives after seeing
+held-out effects without treating that choice as a new analysis.
 
 For each important neuron, retain at least its layer, neuron index, signed
 importance, absolute/RMS importance, sign consistency, and

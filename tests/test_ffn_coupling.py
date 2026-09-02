@@ -93,6 +93,9 @@ def test_service_executes_verified_layer_aware_coupling(tmp_path) -> None:
     assert leading.downstream_importance_rms > 0
     assert leading.direct_importance_rms > 0
     assert leading.native_importance_rms is not None
+    assert leading.direct_importance_mean != 0
+    assert len(outcome.summary.shared_direction_neurons) == 2
+    assert len(outcome.summary.effect_magnitude_neurons) == 2
     assert service.repository.verify(outcome.manifest.run_id) == ()
     assert (outcome.run_directory / "ffn-coupling-tensors.safetensors").is_file()
     report = build_research_report(
@@ -178,6 +181,30 @@ def test_intervention_selects_downstream_candidates_from_coupling_parent(
     assert outcome.summary.rank_run_id == rank.manifest.run_id
     assert outcome.manifest.parent_run_ids == (coupling.manifest.run_id,)
     assert service.repository.verify(outcome.manifest.run_id) == ()
+
+
+def test_intervention_can_select_alternate_shared_direction_view(tmp_path) -> None:
+    service = make_service(tmp_path)
+    rank = service.execute(fake_rank_spec(pairs=2))
+    coupling = service.execute(
+        coupling_spec(
+            rank.manifest.run_id,
+            max_forward_passes=4,
+            max_backward_passes=4,
+        )
+    )
+    payload = coupling_intervention(coupling.manifest.run_id).model_dump(mode="json")
+    payload["selection"]["ranking_objective"] = "shared_direction"
+    payload["execution"]["max_forward_passes"] = 2
+    spec = InterventionSpec.model_validate(payload)
+
+    outcome = service.execute(spec)
+
+    expected = coupling.summary.shared_direction_neurons[0]
+    selected = outcome.summary.selected_neurons[0]
+    assert (selected.layer, selected.neuron) == (expected.layer, expected.neuron)
+    assert selected.ranking_objective == "shared_direction"
+    assert outcome.summary.candidate_ranking_objective == "shared_direction"
 
 
 def test_intervention_selects_preregistered_direct_downstream_overlap(tmp_path) -> None:

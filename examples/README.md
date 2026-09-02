@@ -149,11 +149,18 @@ Every successful run returns an immutable run ID. Use bounded queries first:
 ```bash
 uv run --locked probe runs overview RUN_ID
 uv run --locked probe runs layers RUN_ID --top 10
-uv run --locked probe runs neurons RUN_ID --top 20
+uv run --locked probe runs neurons RUN_ID --ranking-objective shared_direction --top 20
+uv run --locked probe runs neurons RUN_ID --ranking-objective effect_magnitude --top 20
 uv run --locked probe claims RUN_ID
 uv run --locked probe runs verify RUN_ID
 uv run --locked probe report RUN_ID
 ```
+
+New multi-pair examples use signed-mean aggregation (`shared_direction`) for
+the primary paper-faithful FFN ranking while retaining an RMS view in the same
+run. Replay specifications under `examples/replays/` deliberately preserve the
+objective recorded by their existing baselines; do not edit them merely to
+match the new example default.
 
 For attention results:
 

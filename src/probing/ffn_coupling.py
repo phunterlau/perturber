@@ -149,6 +149,7 @@ def run_ffn_coupling(
 
     layer_summaries: list[FFNCouplingLayerSummary] = []
     flattened_rms: list[torch.Tensor] = []
+    flattened_mean: list[torch.Tensor] = []
     offsets: list[tuple[int, int]] = []
     aggregate: dict[int, dict[str, torch.Tensor]] = {}
     total = 0
@@ -164,11 +165,13 @@ def run_ffn_coupling(
         direct_rms = direct_importance.square().mean(dim=0).sqrt()
         downstream_mean = downstream_importance.mean(dim=0)
         native_mean = native_importance.mean(dim=0)
+        direct_mean = direct_importance.mean(dim=0)
         downstream_consistency = _sign_consistency(downstream_importance)
         sign_agreement = (
             downstream_importance.sign() == direct_importance.sign()
         ).float().mean(dim=0)
         top_neuron = int(torch.argmax(downstream_rms).item())
+        top_shared_neuron = int(torch.argmax(downstream_mean.abs()).item())
         layer_summaries.append(
             FFNCouplingLayerSummary(
                 layer=layer,
@@ -176,12 +179,19 @@ def run_ffn_coupling(
                 native_rms_mass=float(native_rms.sum().item()),
                 direct_rms_mass=float(direct_rms.sum().item()),
                 top_neuron=top_neuron,
+                downstream_absolute_mean_mass=float(
+                    downstream_mean.abs().sum().item()
+                ),
+                native_absolute_mean_mass=float(native_mean.abs().sum().item()),
+                direct_absolute_mean_mass=float(direct_mean.abs().sum().item()),
+                top_shared_neuron=top_shared_neuron,
             )
         )
         aggregate[layer] = {
             "delta_mean": delta.mean(dim=0),
             "direct": parent_tensors[f"coupling.layer_{layer}"].detach().float().cpu(),
             "direct_rms": direct_rms,
+            "direct_mean": direct_mean,
             "native_coupling_mean": native_coupling.mean(dim=0),
             "native_mean": native_mean,
             "native_rms": native_rms,
@@ -196,47 +206,68 @@ def run_ffn_coupling(
         offsets.append((layer, total))
         total += downstream_rms.numel()
         flattened_rms.append(downstream_rms)
+        flattened_mean.append(downstream_mean)
 
-    flat = torch.cat(flattened_rms)
-    chosen = min(spec.top_k, flat.numel())
-    selected_flat = torch.argsort(flat, descending=True, stable=True)[:chosen].tolist()
-    neurons: list[FFNCouplingNeuronScore] = []
-    for rank, flat_index in enumerate(selected_flat, start=1):
-        layer, offset = max(
-            (item for item in offsets if item[1] <= flat_index), key=lambda item: item[1]
-        )
-        neuron = flat_index - offset
-        values = aggregate[layer]
-        neurons.append(
-            FFNCouplingNeuronScore(
-                rank=rank,
-                layer=layer,
-                neuron=neuron,
-                activation_delta_mean=float(values["delta_mean"][neuron].item()),
-                direct_coupling=float(values["direct"][neuron].item()),
-                direct_importance_rms=float(values["direct_rms"][neuron].item()),
-                native_coupling_mean=float(
-                    values["native_coupling_mean"][neuron].item()
-                ),
-                native_importance_mean=float(values["native_mean"][neuron].item()),
-                native_importance_rms=float(values["native_rms"][neuron].item()),
-                downstream_coupling_mean=float(
-                    values["downstream_coupling_mean"][neuron].item()
-                ),
-                downstream_importance_mean=float(
-                    values["downstream_mean"][neuron].item()
-                ),
-                downstream_importance_rms=float(
-                    values["downstream_rms"][neuron].item()
-                ),
-                downstream_sign_consistency=float(
-                    values["downstream_consistency"][neuron].item()
-                ),
-                direct_downstream_sign_agreement=float(
-                    values["sign_agreement"][neuron].item()
-                ),
+    chosen = min(spec.top_k, total)
+    shared_indices = torch.argsort(
+        torch.cat(flattened_mean).abs(), descending=True, stable=True
+    )[:chosen].tolist()
+    magnitude_indices = torch.argsort(
+        torch.cat(flattened_rms), descending=True, stable=True
+    )[:chosen].tolist()
+
+    def build_neurons(selected_flat: list[int]) -> tuple[FFNCouplingNeuronScore, ...]:
+        neurons: list[FFNCouplingNeuronScore] = []
+        for rank, flat_index in enumerate(selected_flat, start=1):
+            layer, offset = max(
+                (item for item in offsets if item[1] <= flat_index),
+                key=lambda item: item[1],
             )
-        )
+            neuron = flat_index - offset
+            values = aggregate[layer]
+            downstream_mean = float(values["downstream_mean"][neuron].item())
+            downstream_rms = float(values["downstream_rms"][neuron].item())
+            neurons.append(
+                FFNCouplingNeuronScore(
+                    rank=rank,
+                    layer=layer,
+                    neuron=neuron,
+                    activation_delta_mean=float(values["delta_mean"][neuron].item()),
+                    direct_coupling=float(values["direct"][neuron].item()),
+                    direct_importance_mean=float(values["direct_mean"][neuron].item()),
+                    direct_importance_rms=float(values["direct_rms"][neuron].item()),
+                    native_coupling_mean=float(
+                        values["native_coupling_mean"][neuron].item()
+                    ),
+                    native_importance_mean=float(values["native_mean"][neuron].item()),
+                    native_importance_rms=float(values["native_rms"][neuron].item()),
+                    downstream_coupling_mean=float(
+                        values["downstream_coupling_mean"][neuron].item()
+                    ),
+                    downstream_importance_mean=downstream_mean,
+                    downstream_importance_rms=downstream_rms,
+                    downstream_sign_consistency=float(
+                        values["downstream_consistency"][neuron].item()
+                    ),
+                    direct_downstream_sign_agreement=float(
+                        values["sign_agreement"][neuron].item()
+                    ),
+                    downstream_importance_coherence=(
+                        min(1.0, abs(downstream_mean) / downstream_rms)
+                        if downstream_rms
+                        else 0.0
+                    ),
+                )
+            )
+        return tuple(neurons)
+
+    shared_direction_neurons = build_neurons(shared_indices)
+    effect_magnitude_neurons = build_neurons(magnitude_indices)
+    neurons = (
+        shared_direction_neurons
+        if spec.ranking_objective == "shared_direction"
+        else effect_magnitude_neurons
+    )
 
     summary = FFNCouplingRunSummary(
         science_hash=science_hash,
@@ -257,11 +288,19 @@ def run_ffn_coupling(
         methods=spec.methods,
         pairs=tuple(pair_results),
         layers=tuple(layer_summaries),
-        neurons=tuple(neurons),
+        neurons=neurons,
+        ranking_objective=spec.ranking_objective,
+        shared_direction_neurons=shared_direction_neurons,
+        effect_magnitude_neurons=effect_magnitude_neurons,
         total_neuron_count=total,
         warnings=(
             "Layer-aware coupling is a local first-order influence hypothesis; controlled intervention remains required.",
             "Candidate aggregation uses discovery pairs only; validation and held-out gradients are retained for separate diagnostics.",
+            (
+                "Candidate order uses absolute signed-mean downstream importance; RMS remains a prompt-conditional magnitude diagnostic."
+                if spec.ranking_objective == "shared_direction"
+                else "Candidate order uses downstream RMS effect magnitude and can prioritize sign-varying prompt-conditional neurons."
+            ),
         ),
     )
     return FFNCouplingComputation(summary=summary, tensors=tensors)

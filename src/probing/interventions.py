@@ -49,10 +49,23 @@ def _select_neurons(
         raise ValueError(
             "direct/downstream overlap selection requires an FFN coupling parent"
         )
-    ranked = {
-        (item.layer, item.neuron): item for item in summary.neurons
-    }
     request = spec.selection
+    ranking_objective = (
+        summary.ranking_objective
+        if request.ranking_objective == "parent"
+        else request.ranking_objective
+    )
+    if ranking_objective == "shared_direction":
+        candidates = list(summary.shared_direction_neurons)
+    else:
+        candidates = list(summary.effect_magnitude_neurons)
+    if not candidates:
+        if ranking_objective != summary.ranking_objective:
+            raise ValueError(
+                f"parent rank run does not contain {ranking_objective} candidates"
+            )
+        candidates = list(summary.neurons)
+    ranked = {(item.layer, item.neuron): item for item in candidates}
     if request.strategy == "explicit":
         selected = []
         for reference in request.explicit:
@@ -66,11 +79,11 @@ def _select_neurons(
                     importance_rms=(source.importance_rms if source is not None else None),
                     sign_consistency=(source.sign_consistency if source is not None else None),
                     score_method="direct_structural",
+                    ranking_objective=ranking_objective,
                 )
             )
         return tuple(selected)
 
-    candidates = list(summary.neurons)
     if request.layers:
         allowed_layers = set(request.layers)
         candidates = [item for item in candidates if item.layer in allowed_layers]
@@ -98,6 +111,7 @@ def _select_neurons(
             importance_rms=item.importance_rms,
             sign_consistency=item.sign_consistency,
             score_method="direct_structural",
+            ranking_objective=ranking_objective,
         )
         for item in candidates[: request.top_k]
     )
@@ -108,7 +122,22 @@ def _select_coupling_neurons(
     spec: InterventionSpec,
 ) -> tuple[SelectedNeuron, ...]:
     request = spec.selection
-    ranked = {(item.layer, item.neuron): item for item in summary.neurons}
+    ranking_objective = (
+        summary.ranking_objective
+        if request.ranking_objective == "parent"
+        else request.ranking_objective
+    )
+    if ranking_objective == "shared_direction":
+        candidates = list(summary.shared_direction_neurons)
+    else:
+        candidates = list(summary.effect_magnitude_neurons)
+    if not candidates:
+        if ranking_objective != summary.ranking_objective:
+            raise ValueError(
+                f"FFN coupling run does not contain {ranking_objective} candidates"
+            )
+        candidates = list(summary.neurons)
+    ranked = {(item.layer, item.neuron): item for item in candidates}
 
     def selected(item, *, score_method: str = "downstream_endpoint_gradient") -> SelectedNeuron:
         return SelectedNeuron(
@@ -119,6 +148,7 @@ def _select_coupling_neurons(
             importance_rms=item.downstream_importance_rms,
             sign_consistency=item.downstream_sign_consistency,
             score_method=score_method,
+            ranking_objective=ranking_objective,
         )
 
     if request.strategy == "explicit":
@@ -132,11 +162,11 @@ def _select_coupling_neurons(
                     layer=reference.layer,
                     neuron=reference.neuron,
                     score_method="downstream_endpoint_gradient",
+                    ranking_objective=ranking_objective,
                 )
             )
         return tuple(values)
 
-    candidates = list(summary.neurons)
     if request.layers:
         allowed_layers = set(request.layers)
         candidates = [item for item in candidates if item.layer in allowed_layers]
@@ -155,7 +185,15 @@ def _select_coupling_neurons(
         downstream_pool = candidates[: request.overlap_pool_size]
         direct_pool = sorted(
             candidates,
-            key=lambda item: (-item.direct_importance_rms, item.layer, item.neuron),
+            key=lambda item: (
+                -(
+                    abs(item.direct_importance_mean)
+                    if ranking_objective == "shared_direction"
+                    else item.direct_importance_rms
+                ),
+                item.layer,
+                item.neuron,
+            ),
         )[: request.overlap_pool_size]
         direct_keys = {(item.layer, item.neuron) for item in direct_pool}
         candidates = [
@@ -299,7 +337,11 @@ def _matched_random_neurons(
         if len(candidates) < len(neurons):
             raise ValueError(f"layer {layer} has too few neurons for matched controls")
         random_values.extend(
-            SelectedNeuron(layer=layer, neuron=neuron)
+            SelectedNeuron(
+                layer=layer,
+                neuron=neuron,
+                ranking_objective=selected[0].ranking_objective,
+            )
             for neuron in sorted(rng.sample(candidates, len(neurons)))
         )
     return tuple(random_values)
@@ -962,6 +1004,15 @@ def run_intervention(
             selected_all[0].score_method
             if candidate_summary is not None and selected_all
             else "direct_structural"
+        ),
+        candidate_ranking_objective=(
+            selected_all[0].ranking_objective
+            if selected_all
+            else (
+                candidate_summary.ranking_objective
+                if candidate_summary is not None
+                else parent_summary.ranking_objective
+            )
         ),
         qualification_run_id=spec.qualification_run_id,
         trajectory_run_id=spec.trajectory_run_id,

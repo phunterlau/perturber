@@ -46,14 +46,18 @@ def perturbation_sensitivity(
         warnings.append(
             "Sensitivity comparison requires at least two metadata groups."
         )
+    warnings.append(
+        f"Group top-k sets use the run's {summary.ranking_objective} objective."
+    )
 
     group_scores: dict[str, tuple[torch.Tensor, torch.Tensor, set[int]]] = {}
     for group, indices in grouped_indices.items():
         values = matrix[indices]
         rms = torch.sqrt(values.square().mean(dim=0))
         mean = values.mean(dim=0)
+        score = mean.abs() if summary.ranking_objective == "shared_direction" else rms
         top = set(
-            torch.argsort(rms, descending=True, stable=True)[:effective_top_n].tolist()
+            torch.argsort(score, descending=True, stable=True)[:effective_top_n].tolist()
         )
         group_scores[group] = (rms, mean, top)
 

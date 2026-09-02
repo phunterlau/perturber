@@ -54,6 +54,7 @@ ffn_coupling:
   parent_run_id: $rank
   trajectory_run_id: $trajectory
   methods: [native_local_readout, downstream_endpoint_gradient]
+  ranking_objective: shared_direction
   top_k: 500
   max_backward_passes: 2
   execution:

@@ -28,7 +28,7 @@ def fake_rank_spec(*, pairs: int = 1) -> RankSpec:
                 "perturbed": "London",
             }
         )
-        source["ranking"]["pair_aggregation"] = "rms"
+        source["ranking"]["pair_aggregation"] = "signed_mean"
         source["execution"]["max_forward_passes"] = 4
     return RankSpec.model_validate(source)
 

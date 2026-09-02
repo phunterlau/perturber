@@ -43,6 +43,47 @@ def test_aggregate_equal_rms_scores_use_layer_then_neuron_order() -> None:
     assert [item.neuron for item in aggregate.summary.neurons] == [0, 1]
 
 
+def test_shared_direction_ranking_rejects_large_sign_cancellation() -> None:
+    engine = ProbeEngine(FakeAdapter())
+    base = engine.analyze_details(fake_spec())
+    first = replace(
+        base,
+        importance_by_layer=(torch.tensor([10.0, 6.0]),),
+        coupling_by_layer=(torch.ones(2),),
+        original_activation_by_layer=(torch.zeros(2),),
+        perturbed_activation_by_layer=(torch.tensor([10.0, 6.0]),),
+    )
+    second = replace(
+        first,
+        importance_by_layer=(torch.tensor([-10.0, 6.0]),),
+        perturbed_activation_by_layer=(torch.tensor([-10.0, 6.0]),),
+    )
+
+    shared = aggregate_analyses(
+        science_hash="0" * 64,
+        pair_ids=("first", "second"),
+        analyses=(first, second),
+        top_k=2,
+        pair_aggregation="signed_mean",
+    ).summary
+    magnitude = aggregate_analyses(
+        science_hash="1" * 64,
+        pair_ids=("first", "second"),
+        analyses=(first, second),
+        top_k=2,
+        pair_aggregation="rms",
+    ).summary
+
+    assert shared.ranking_objective == "shared_direction"
+    assert shared.neurons[0].neuron == 1
+    assert shared.neurons[0].importance_mean == pytest.approx(6.0)
+    assert shared.shared_direction_neurons[0].neuron == 1
+    assert shared.effect_magnitude_neurons[0].neuron == 0
+    assert shared.effect_magnitude_neurons[0].importance_coherence == 0
+    assert magnitude.ranking_objective == "effect_magnitude"
+    assert magnitude.neurons[0].neuron == 0
+
+
 def test_heldout_pairs_are_saved_but_do_not_select_ranked_neurons() -> None:
     engine = ProbeEngine(FakeAdapter())
     discovery = engine.analyze_details(fake_spec())

@@ -26,6 +26,8 @@ FFN_COUPLING_SCHEMA_VERSION = "probe.ffn-coupling/v1"
 EVENT_SCHEMA_VERSION = "probe.event/v1"
 MANIFEST_SCHEMA_VERSION = "probe.run/v1"
 
+RankingObjective = Literal["shared_direction", "effect_magnitude"]
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
@@ -195,7 +197,7 @@ class CaptureRequest(StrictModel):
 class RankingRequest(StrictModel):
     top_k: PositiveInt = 500
     select_by: Literal["absolute_importance"] = "absolute_importance"
-    pair_aggregation: Literal["single_pair", "rms"] = "single_pair"
+    pair_aggregation: Literal["single_pair", "signed_mean", "rms"] = "single_pair"
 
 
 class ExecutionLimits(StrictModel):
@@ -236,8 +238,13 @@ class RankSpec(StrictModel):
             raise ValueError("pair IDs must be unique")
         if len(self.pairs) == 1 and self.ranking.pair_aggregation != "single_pair":
             raise ValueError("one pair must use pair_aggregation='single_pair'")
-        if len(self.pairs) > 1 and self.ranking.pair_aggregation != "rms":
-            raise ValueError("multiple pairs must use pair_aggregation='rms'")
+        if len(self.pairs) > 1 and self.ranking.pair_aggregation not in {
+            "signed_mean",
+            "rms",
+        }:
+            raise ValueError(
+                "multiple pairs must use pair_aggregation='signed_mean' or 'rms'"
+            )
         return self
 
 
@@ -290,6 +297,9 @@ class FFNCouplingSpec(StrictModel):
     methods: tuple[
         Literal["native_local_readout", "downstream_endpoint_gradient"], ...
     ] = ("native_local_readout", "downstream_endpoint_gradient")
+    # Omitted in legacy v1 specifications, where RMS was the only ranking.
+    # New UI and examples set shared_direction explicitly.
+    ranking_objective: RankingObjective = "effect_magnitude"
     top_k: PositiveInt = Field(default=500, le=10_000)
     max_backward_passes: PositiveInt
     execution: ExecutionLimits
@@ -395,6 +405,9 @@ class NeuronSelectionRequest(StrictModel):
     layers: tuple[int, ...] = ()
     sign: Literal["any", "positive", "negative"] = "any"
     min_sign_consistency: float = Field(default=0.0, ge=0, le=1)
+    ranking_objective: Literal[
+        "parent", "shared_direction", "effect_magnitude"
+    ] = "parent"
 
     @model_validator(mode="after")
     def validate_strategy(self) -> "NeuronSelectionRequest":
@@ -1188,6 +1201,7 @@ class AggregateNeuronScore(StrictModel):
     importance_mean: float
     importance_rms: float = Field(ge=0)
     sign_consistency: float = Field(ge=0, le=1)
+    importance_coherence: float = Field(default=0.0, ge=0, le=1)
 
 
 class AggregateLayerSummary(StrictModel):
@@ -1200,6 +1214,10 @@ class AggregateLayerSummary(StrictModel):
     maximum_rms: float = Field(ge=0)
     top_neuron: int = Field(ge=0)
     activation_delta_norm_mean: float = Field(ge=0)
+    absolute_mean_mass: float | None = Field(default=None, ge=0)
+    top_10_mean_share: float | None = Field(default=None, ge=0, le=1)
+    maximum_absolute_mean: float | None = Field(default=None, ge=0)
+    top_mean_neuron: int | None = Field(default=None, ge=0)
 
 
 class RankRunSummary(StrictModel):
@@ -1213,6 +1231,9 @@ class RankRunSummary(StrictModel):
     pairs: tuple[PairResultSummary, ...]
     layers: tuple[AggregateLayerSummary, ...]
     neurons: tuple[AggregateNeuronScore, ...]
+    ranking_objective: RankingObjective = "effect_magnitude"
+    shared_direction_neurons: tuple[AggregateNeuronScore, ...] = ()
+    effect_magnitude_neurons: tuple[AggregateNeuronScore, ...] = ()
     total_neuron_count: PositiveInt
     measured_delta_mean: float
     predicted_delta_mean: float
@@ -1284,6 +1305,7 @@ class FFNCouplingNeuronScore(StrictModel):
     activation_delta_mean: float
     direct_coupling: float
     direct_importance_rms: float = Field(ge=0)
+    direct_importance_mean: float = 0.0
     native_coupling_mean: float | None = None
     native_importance_mean: float | None = None
     native_importance_rms: float | None = Field(default=None, ge=0)
@@ -1292,6 +1314,7 @@ class FFNCouplingNeuronScore(StrictModel):
     downstream_importance_rms: float = Field(ge=0)
     downstream_sign_consistency: float = Field(ge=0, le=1)
     direct_downstream_sign_agreement: float = Field(ge=0, le=1)
+    downstream_importance_coherence: float = Field(default=0.0, ge=0, le=1)
 
 
 class FFNCouplingLayerSummary(StrictModel):
@@ -1300,6 +1323,10 @@ class FFNCouplingLayerSummary(StrictModel):
     native_rms_mass: float | None = Field(default=None, ge=0)
     direct_rms_mass: float = Field(ge=0)
     top_neuron: int = Field(ge=0)
+    downstream_absolute_mean_mass: float | None = Field(default=None, ge=0)
+    native_absolute_mean_mass: float | None = Field(default=None, ge=0)
+    direct_absolute_mean_mass: float | None = Field(default=None, ge=0)
+    top_shared_neuron: int | None = Field(default=None, ge=0)
 
 
 class FFNCouplingPairSummary(StrictModel):
@@ -1326,6 +1353,9 @@ class FFNCouplingRunSummary(StrictModel):
     pairs: tuple[FFNCouplingPairSummary, ...]
     layers: tuple[FFNCouplingLayerSummary, ...]
     neurons: tuple[FFNCouplingNeuronScore, ...]
+    ranking_objective: RankingObjective = "effect_magnitude"
+    shared_direction_neurons: tuple[FFNCouplingNeuronScore, ...] = ()
+    effect_magnitude_neurons: tuple[FFNCouplingNeuronScore, ...] = ()
     total_neuron_count: PositiveInt
     evidence_stage: Literal["observational_ffn_coupling"] = (
         "observational_ffn_coupling"
@@ -1343,6 +1373,7 @@ class RunOverview(StrictModel):
     run_id: str
     science_hash: str
     evidence_stage: Literal["exploratory_pair", "replicated_ranking"]
+    ranking_objective: RankingObjective = "effect_magnitude"
     model: dict[str, Any]
     observable: dict[str, Any]
     pair_count: PositiveInt
@@ -1406,6 +1437,7 @@ class SelectedNeuron(StrictModel):
         "downstream_endpoint_gradient",
         "direct_downstream_overlap",
     ] = "direct_structural"
+    ranking_objective: RankingObjective = "effect_magnitude"
 
 
 class InterventionObservation(StrictModel):
@@ -1499,6 +1531,7 @@ class InterventionRunSummary(StrictModel):
         "downstream_endpoint_gradient",
         "direct_downstream_overlap",
     ] = "direct_structural"
+    candidate_ranking_objective: RankingObjective = "effect_magnitude"
     qualification_run_id: str | None = None
     trajectory_run_id: str | None = None
     model: dict[str, Any]

@@ -47,7 +47,7 @@ def test_replication_example_has_matching_aggregation_and_budget() -> None:
     spec = example_replication_spec()
 
     assert len(spec.pairs) == 3
-    assert spec.ranking.pair_aggregation == "rms"
+    assert spec.ranking.pair_aggregation == "signed_mean"
     assert spec.execution.max_forward_passes == 6
 
 
@@ -67,7 +67,7 @@ def test_paper_case_smoke_specs_are_strict_bounded_replications(filename) -> Non
     spec = load_spec(str(path))
 
     assert len(spec.pairs) == 3
-    assert spec.ranking.pair_aggregation == "rms"
+    assert spec.ranking.pair_aggregation == "signed_mean"
     assert spec.execution.max_forward_passes == 6
     assert spec.execution.allow_download is False
     assert spec.tags["fidelity"] in {"representative-smoke", "capability-smoke"}

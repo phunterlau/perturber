@@ -48,7 +48,15 @@ def build_overview(
         else RankRunSummary.model_validate(summary)
     )
     layers = tuple(
-        sorted(parsed.layers, key=lambda item: item.rms_mass, reverse=True)[:top_layers]
+        sorted(
+            parsed.layers,
+            key=(
+                (lambda item: item.absolute_mean_mass or 0.0)
+                if parsed.ranking_objective == "shared_direction"
+                else (lambda item: item.rms_mass)
+            ),
+            reverse=True,
+        )[:top_layers]
     )
     neurons = tuple(
         NeuronCandidate(
@@ -61,6 +69,7 @@ def build_overview(
         run_id=run_id,
         science_hash=parsed.science_hash,
         evidence_stage=parsed.evidence_stage,
+        ranking_objective=parsed.ranking_objective,
         model=parsed.model,
         observable=parsed.observable,
         pair_count=parsed.pair_count,
@@ -130,15 +139,37 @@ def build_research_report(
             )
         )
         if parsed.layers:
-            layer = max(parsed.layers, key=lambda item: item.rms_mass)
+            layer = max(
+                parsed.layers,
+                key=(
+                    (lambda item: item.absolute_mean_mass or 0.0)
+                    if parsed.ranking_objective == "shared_direction"
+                    else (lambda item: item.rms_mass)
+                ),
+            )
             key_results.append(
-                f"Highest aggregate FFN mass is layer {layer.layer} (RMS mass {layer.rms_mass:.6g})."
+                f"Highest aggregate FFN mass is layer {layer.layer} "
+                + (
+                    f"(absolute signed-mean mass {(layer.absolute_mean_mass or 0.0):.6g})."
+                    if parsed.ranking_objective == "shared_direction"
+                    else f"(RMS mass {layer.rms_mass:.6g})."
+                )
             )
         if parsed.neurons:
             neuron = parsed.neurons[0]
             key_results.append(
-                f"Leading ranked unit is L{neuron.layer}/N{neuron.neuron} (importance RMS {neuron.importance_rms:.6g}, sign consistency {neuron.sign_consistency:.3f})."
+                f"Leading ranked unit is L{neuron.layer}/N{neuron.neuron} "
+                f"(signed mean {neuron.importance_mean:+.6g}, RMS {neuron.importance_rms:.6g}, "
+                f"coherence {neuron.importance_coherence:.3f}, sign consistency {neuron.sign_consistency:.3f})."
             )
+        key_results.append(
+            "Primary candidate objective: "
+            + (
+                "shared directional effect (paper-faithful absolute signed mean)."
+                if parsed.ranking_objective == "shared_direction"
+                else "prompt-conditional effect magnitude (RMS)."
+            )
+        )
         headline = (
             "Replicated observational neuron ranking"
             if parsed.pair_count > 1

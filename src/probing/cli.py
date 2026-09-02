@@ -1440,11 +1440,31 @@ def runs_layers(
     ctx: typer.Context,
     run_id: str,
     top: Annotated[int, typer.Option(min=1)] = 20,
+    ranking_objective: Annotated[
+        Literal["parent", "shared_direction", "effect_magnitude"], typer.Option()
+    ] = "parent",
 ) -> None:
     try:
-        values = list(_summary(_context(ctx), run_id)["layers"])
+        summary = _summary(_context(ctx), run_id)
+        objective = (
+            str(summary.get("ranking_objective", "effect_magnitude"))
+            if ranking_objective == "parent"
+            else ranking_objective
+        )
+        values = list(summary["layers"])
         source_count = len(values)
-        values.sort(key=lambda item: item["rms_mass"], reverse=True)
+        if objective == "shared_direction":
+            if any(item.get("absolute_mean_mass") is None for item in values):
+                raise ValueError("run does not contain shared-direction layer scores")
+            values.sort(
+                key=lambda item: (-float(item["absolute_mean_mass"]), int(item["layer"]))
+            )
+            sort = "absolute_mean_mass:desc,layer:asc"
+        else:
+            values.sort(
+                key=lambda item: (-float(item["rms_mass"]), int(item["layer"]))
+            )
+            sort = "rms_mass:desc,layer:asc"
         selected = values[:top]
         _dump(
             query_envelope(
@@ -1453,8 +1473,8 @@ def runs_layers(
                 items=selected,
                 source_count=source_count,
                 matched_count=source_count,
-                parameters={"top": top},
-                sort="rms_mass:desc,layer:asc",
+                parameters={"top": top, "ranking_objective": objective},
+                sort=sort,
             )
         )
     except Exception as exc:
@@ -1468,9 +1488,27 @@ def runs_neurons(
     top: Annotated[int, typer.Option(min=1)] = 20,
     layer: Annotated[int | None, typer.Option(min=0)] = None,
     sign: Annotated[Literal["any", "positive", "negative"], typer.Option()] = "any",
+    ranking_objective: Annotated[
+        Literal["parent", "shared_direction", "effect_magnitude"], typer.Option()
+    ] = "parent",
 ) -> None:
     try:
-        values = list(_summary(_context(ctx), run_id)["neurons"])
+        summary = _summary(_context(ctx), run_id)
+        objective = (
+            str(summary.get("ranking_objective", "effect_magnitude"))
+            if ranking_objective == "parent"
+            else ranking_objective
+        )
+        view_key = (
+            "shared_direction_neurons"
+            if objective == "shared_direction"
+            else "effect_magnitude_neurons"
+        )
+        values = list(summary.get(view_key) or [])
+        if not values:
+            if objective != summary.get("ranking_objective", "effect_magnitude"):
+                raise ValueError(f"run does not contain {objective} candidates")
+            values = list(summary["neurons"])
         source_count = len(values)
         if layer is not None:
             values = [item for item in values if item["layer"] == layer]
@@ -1499,8 +1537,17 @@ def runs_neurons(
                 items=selected,
                 source_count=source_count,
                 matched_count=matched_count,
-                parameters={"top": top, "layer": layer, "sign": sign},
-                sort="importance_rms:desc,rank:asc",
+                parameters={
+                    "top": top,
+                    "layer": layer,
+                    "sign": sign,
+                    "ranking_objective": objective,
+                },
+                sort=(
+                    "absolute_importance_mean:desc,rank:asc"
+                    if objective == "shared_direction"
+                    else "importance_rms:desc,rank:asc"
+                ),
             )
         )
     except Exception as exc:
@@ -1673,19 +1720,36 @@ def runs_ffn_couplings(
     sign: Annotated[
         Literal["any", "positive", "negative"], typer.Option()
     ] = "any",
+    ranking_objective: Annotated[
+        Literal["parent", "shared_direction", "effect_magnitude"], typer.Option()
+    ] = "parent",
 ) -> None:
     from .contracts import FFNCouplingRunSummary
 
     try:
         summary = FFNCouplingRunSummary.model_validate(_summary(_context(ctx), run_id))
-        source_count = len(summary.neurons)
+        objective = (
+            summary.ranking_objective
+            if ranking_objective == "parent"
+            else ranking_objective
+        )
+        candidates = (
+            summary.shared_direction_neurons
+            if objective == "shared_direction"
+            else summary.effect_magnitude_neurons
+        )
+        if not candidates:
+            if objective != summary.ranking_objective:
+                raise ValueError(f"run does not contain {objective} candidates")
+            candidates = summary.neurons
+        source_count = len(candidates)
         rows: list[dict[str, Any]] = []
-        for item in summary.neurons:
+        for item in candidates:
             if layer is not None and item.layer != layer:
                 continue
             if method == "direct":
                 coupling = item.direct_coupling
-                importance = item.activation_delta_mean * item.direct_coupling
+                importance = item.direct_importance_mean
                 rms = item.direct_importance_rms
             elif method == "native":
                 if (
@@ -1721,7 +1785,11 @@ def runs_ffn_couplings(
             )
         rows.sort(
             key=lambda item: (
-                -float(item["importance_rms"]),
+                -(
+                    abs(float(item["importance_mean"]))
+                    if objective == "shared_direction"
+                    else float(item["importance_rms"])
+                ),
                 int(item["layer"]),
                 int(item["neuron"]),
             )
@@ -1740,8 +1808,13 @@ def runs_ffn_couplings(
                     "layer": layer,
                     "sign": sign,
                     "candidate_pair_ids": list(summary.candidate_pair_ids),
+                    "ranking_objective": objective,
                 },
-                sort="importance_rms:desc,layer:asc,neuron:asc",
+                sort=(
+                    "absolute_importance_mean:desc,layer:asc,neuron:asc"
+                    if objective == "shared_direction"
+                    else "importance_rms:desc,layer:asc,neuron:asc"
+                ),
             )
         )
     except Exception as exc:

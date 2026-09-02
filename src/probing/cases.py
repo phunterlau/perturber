@@ -451,14 +451,20 @@ def _stage_inspection_commands(stage: ResearchCaseStage) -> tuple[str, ...]:
         return ()
     run_id = stage.run_id
     specialized: tuple[str, ...] = ()
-    if stage.kind == "trajectory":
+    if stage.kind == "rank":
+        specialized = (
+            f"uv run --locked probe runs neurons {run_id} --ranking-objective shared_direction --top 20",
+            f"uv run --locked probe runs neurons {run_id} --ranking-objective effect_magnitude --top 20",
+        )
+    elif stage.kind == "trajectory":
         specialized = (
             f"uv run --locked probe runs trajectory {run_id} --metric logit_gap --checkpoint all --limit 500",
             f"uv run --locked probe runs transitions {run_id} --split all --limit 20",
         )
     elif stage.kind == "ffn_coupling":
         specialized = (
-            f"uv run --locked probe runs ffn-couplings {run_id} --method downstream --top 20",
+            f"uv run --locked probe runs ffn-couplings {run_id} --method downstream --ranking-objective shared_direction --top 20",
+            f"uv run --locked probe runs ffn-couplings {run_id} --method downstream --ranking-objective effect_magnitude --top 20",
             f"uv run --locked probe runs coupling-compare {run_id} --top 50",
         )
     return (

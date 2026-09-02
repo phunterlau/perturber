@@ -216,7 +216,7 @@ def example_replication_spec() -> RankSpec:
             ],
             "ranking": {
                 **value["ranking"],
-                "pair_aggregation": "rms",
+                "pair_aggregation": "signed_mean",
             },
             "execution": {
                 **value["execution"],
