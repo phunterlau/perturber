@@ -34,6 +34,50 @@ def _rank_workflow() -> ResearchWorkflowSpec:
     return ResearchWorkflowSpec(name="fixture-case", rank=fake_rank_spec())
 
 
+@pytest.mark.parametrize("heldout_status,arm,local_type,expected", [
+    ("supported", "selected", "sufficiency", "heldout_replicated"),
+    ("not_supported", "selected", "sufficiency", "locally_causal"),
+    ("exploratory", "selected", "sufficiency", "locally_causal"),
+    ("supported", "matched_random", "sufficiency", "locally_causal"),
+    ("supported", "selected", "observable_validity", "behaviorally_qualified"),
+])
+def test_case_label_requires_explicit_supported_heldout_claim(
+    tmp_path, monkeypatch, heldout_status, arm, local_type, expected
+) -> None:
+    from test_workflow_reporting import _qualification, _intervention
+    from probing.workflow import run_workflow
+
+    service = make_service(tmp_path)
+    workflow = ResearchWorkflowSpec(name="evidence-label", rank=fake_rank_spec(),
+        qualification=_qualification("$rank"),
+        interventions=(_intervention("$rank", "$qualification"),))
+    outcome = run_workflow(service=service, spec=workflow)
+    repository = ResearchCaseRepository(service.workspace)
+    case = repository.create(ResearchCaseCreate(intent=_intent(), workflow=workflow))
+    for stage, run in zip(case.stages, outcome.stages, strict=True):
+        repository.update_stage(case.case_id, stage.key, run_id=run.run_id, status="verified")
+    real_load = service.repository.load_summary
+    intervention_id = outcome.intervention_run_ids[0]
+    def load(run_id):
+        summary = real_load(run_id)
+        if run_id == intervention_id:
+            summary["claims"] = [
+                {"claim_id": "local", "claim_type": local_type, "status": "supported", "statement": "Fixture local effect"},
+                {"claim_id": "heldout", "claim_type": "generalization", "status": heldout_status, "statement": "Fixture held-out evaluation"},
+            ]
+            summary["observations"] = [{"split": "heldout", "arm": arm}]
+        return summary
+    monkeypatch.setattr(service.repository, "load_summary", load)
+    assert repository.refresh(case.case_id, service).evidence_label == expected
+    # A stale previous verification must not keep a failed qualification eligible.
+    real_verify = service.repository.verify
+    monkeypatch.setattr(service.repository, "verify", lambda run_id:
+        ("qualification checksum mismatch",) if run_id == outcome.qualification_run_id else real_verify(run_id))
+    refreshed = repository.refresh(case.case_id, service)
+    assert refreshed.evidence_label == "observational"
+    assert next(stage for stage in refreshed.stages if stage.key == "qualification").status == "failed"
+
+
 def test_case_roundtrip_and_executed_stage_is_immutable(tmp_path) -> None:
     repository = ResearchCaseRepository(tmp_path / "workspace")
     created = repository.create(

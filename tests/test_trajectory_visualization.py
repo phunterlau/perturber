@@ -108,3 +108,19 @@ def test_cli_verifies_runs_and_writes_self_contained_html(monkeypatch, tmp_path)
     }
     assert len(receipt["sha256"]) == 64
     assert output.read_text(encoding="utf-8").startswith("<!doctype html>")
+
+
+def test_cli_integrity_failure_has_documented_exit_code_and_preserves_output(tmp_path) -> None:
+    service, trajectory, intervention = _fixture_runs(tmp_path)
+    output = tmp_path / "existing.html"
+    output.write_text("previous export", encoding="utf-8")
+    # Tamper with a fixture artifact, never a real research run.
+    (trajectory.run_directory / "summary.json").write_text("{}", encoding="utf-8")
+    result = runner.invoke(cli.app, [
+        "--workspace", str(service.workspace), "runs", "trajectory-visualize",
+        trajectory.manifest.run_id, intervention.manifest.run_id,
+        "--output", str(output),
+    ])
+    assert result.exit_code == 6, result.output
+    assert json.loads(result.stdout)["error"]["code"] == "artifact_error"
+    assert output.read_text(encoding="utf-8") == "previous export"

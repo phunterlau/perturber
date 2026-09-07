@@ -12,6 +12,7 @@ import {
   rankedNeurons,
   rankingComparison,
   resolveNeuronEvidence,
+  selectIntervention,
   serializeWorkflowYaml,
   strongestSelectedPath,
   suggestedTrajectoryBand,
@@ -62,6 +63,19 @@ const caseValue = (): ResearchCase => ({
 });
 
 describe("research workbench view models", () => {
+  it("selects each immutable intervention arm and keeps duplicate methods distinguishable", () => {
+    const summary = { schema_version: "probe.intervention-result/v1", parent_run_id: "rank", evidence_stage: "causal_intervention", logical_forward_passes: 4, selected_neurons: [], observations: [], doses: [], claims: [], warnings: [] } satisfies InterventionSummary;
+    const summaries = {
+      direct: { ...summary, candidate_score_method: "direct_structural" as const },
+      downstream: { ...summary, candidate_score_method: "downstream_endpoint_gradient" as const },
+      repeat: { ...summary, candidate_score_method: "direct_structural" as const },
+    };
+    expect(selectIntervention(summaries, "").selected?.key).toBe("direct");
+    expect(selectIntervention(summaries, "downstream").selected?.summary.candidate_score_method).toBe("downstream_endpoint_gradient");
+    expect(selectIntervention(summaries, "repeat").selected?.key).toBe("repeat");
+    expect(selectIntervention(summaries, "downstream").options).toHaveLength(3);
+    expect(selectIntervention({}, "downstream").selected).toBeUndefined();
+  });
   it("round-trips the canonical workflow through YAML", () => {
     const workflow = defaultAttentionWorkflow();
     expect(parseWorkflowYaml(serializeWorkflowYaml(workflow))).toEqual(workflow);
@@ -102,7 +116,9 @@ describe("research workbench view models", () => {
     const checkpoint = (layer: number, name: "block_input" | "post_attention" | "post_ffn", pairDelta: number) => ({ layer, checkpoint: name, original_gap: 1, perturbed_gap: 1 + pairDelta, pair_delta: pairDelta, original_target_probability: .2, perturbed_target_probability: .3, original_control_probability: .1, perturbed_control_probability: .1, original_entropy: 2, perturbed_entropy: 2, original_target_rank: 4, perturbed_target_rank: 3, original_forward_kl_to_final: .1, perturbed_forward_kl_to_final: .1, paired_js: .01, paired_total_variation: .1 });
     const summary = { schema_version: "probe.trajectory-result/v1", parent_run_id: "rank", pair_count: 1, logical_forward_passes: 2, pairs: [{ pair_id: "capital", split: "discovery", checkpoints: [checkpoint(0, "block_input", .1), checkpoint(0, "post_attention", .2), checkpoint(0, "post_ffn", .3)], transitions: [], final_pair_delta: .3, warnings: [] }], evidence_stage: "observational_trajectory", claims: [], warnings: [] } satisfies TrajectorySummary;
     expect(trajectoryRows(summary, "capital").map((item) => item.label)).toEqual(["L0 input", "L0 attention", "L0 FFN"]);
-    expect(trajectoryRows(summary, "missing")[2].pair_delta).toBe(.3);
+    expect(trajectoryRows(summary, "missing")).toEqual([]);
+    expect(trajectoryMetricView(summary, "missing", "logit_gap").rows).toEqual([]);
+    expect(suggestedTrajectoryBand(summary, "missing")).toEqual([]);
   });
 
   it("switches trajectory metrics and preserves lower-is-better rank semantics", () => {

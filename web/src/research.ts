@@ -1,6 +1,7 @@
 import type {
   AttentionTraceSummary,
   Dose,
+  EvidenceSummary,
   FFNCouplingNeuron,
   FFNCouplingSummary,
   InterventionSummary,
@@ -15,6 +16,7 @@ import type {
   TrajectoryCheckpoint,
   TrajectorySummary,
 } from "./types";
+import { isInterventionSummary } from "./types";
 import { parse, stringify } from "yaml";
 
 export const DEFAULT_INTENT: ResearchIntent = {
@@ -145,8 +147,16 @@ export type TrajectoryMetricView = {
   lowerIsBetter: boolean;
 };
 
+export function selectIntervention(summaries: Record<string, EvidenceSummary>, selectedKey: string) {
+  const options = Object.entries(summaries).flatMap(([key, summary]) =>
+    isInterventionSummary(summary) ? [{ key, summary }] : [],
+  );
+  const selected = options.find((item) => item.key === selectedKey) ?? options[0];
+  return { options, selected };
+}
+
 export function trajectoryRows(summary: TrajectorySummary, pairId: string): Array<TrajectoryCheckpoint & { x: number; label: string }> {
-  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  const pair = summary.pairs.find((item) => item.pair_id === pairId);
   if (!pair) return [];
   return pair.checkpoints.map((item, index) => ({ ...item, x: index, label: `L${item.layer} ${checkpointLabel(item.checkpoint)}` }));
 }
@@ -188,7 +198,7 @@ export function suggestedTrajectoryBand(
   pairId: string,
   padding = 1,
 ): number[] {
-  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  const pair = summary.pairs.find((item) => item.pair_id === pairId);
   if (!pair?.checkpoints.length || !pair.transitions.length) return [];
   const layers = pair.checkpoints.map((item) => item.layer);
   const lower = Math.max(Math.min(...layers), pair.transitions[0].layer - padding);

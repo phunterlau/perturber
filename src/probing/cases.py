@@ -188,12 +188,15 @@ class ResearchCaseRepository:
             run_ids = {stage.key: stage.run_id for stage in current.stages if stage.run_id}
             qualification_ok = False
             qualification_stage = next((s for s in current.stages if s.key == "qualification"), None)
-            if qualification_stage and qualification_stage.run_id and not qualification_stage.verification_failures:
+            if qualification_stage and qualification_stage.run_id:
                 try:
                     qualification = QualificationRunSummary.model_validate(
                         service.repository.load_summary(qualification_stage.run_id)
                     )
-                    qualification_ok = qualification.aggregate.claim_eligible
+                    qualification_ok = (
+                        not service.repository.verify(qualification_stage.run_id)
+                        and qualification.aggregate.claim_eligible
+                    )
                 except Exception:
                     qualification_ok = False
 
@@ -206,15 +209,29 @@ class ResearchCaseRepository:
                     summary = service.repository.load_summary(stage.run_id)
                     raw_claims = tuple(summary.get("claims", ()))
                     claims = tuple(ClaimRecord.model_validate(item) for item in raw_claims)
-                    supported = any(item.status == "supported" for item in claims)
+                    causal_types = {
+                        "intervention": {"necessity", "sufficiency"},
+                        "attention_intervention": {"attention_routing"},
+                        "attention_trace": {"causal_path"},
+                    }.get(stage.kind, set())
+                    supported = any(
+                        item.status == "supported" and item.claim_type in causal_types
+                        for item in claims
+                    )
                     status = "verified" if not failures else "failed"
-                    if status == "verified" and supported and stage.kind in {
-                        "intervention", "attention_intervention", "attention_trace"
-                    }:
+                    if status == "verified" and supported and qualification_ok:
                         any_local_causal = True
                         rows = summary.get("observations") or summary.get("paths") or []
-                        any_heldout_causal = any_heldout_causal or any(
-                            item.get("split") == "heldout" for item in rows
+                        heldout_supported = any(
+                            item.claim_type == "generalization" and item.status == "supported"
+                            for item in claims
+                        )
+                        any_heldout_causal = any_heldout_causal or (
+                            heldout_supported and any(
+                                item.get("split") == "heldout"
+                                and item.get("arm") in {"selected", "selected_path"}
+                                for item in rows
+                            )
                         )
                     refreshed.append(
                         stage.model_copy(

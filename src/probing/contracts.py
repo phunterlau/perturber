@@ -1809,6 +1809,8 @@ class StabilityReport(StrictModel):
     schema_version: Literal["probe.stability/v1"] = "probe.stability/v1"
     run_id: str
     pair_count: PositiveInt
+    split: Literal["discovery", "validation", "heldout", "all"] = "all"
+    pair_ids: tuple[str, ...] = ()
     top_n: PositiveInt
     split_count: int = Field(ge=0)
     mean_top_n_overlap: float | None = Field(default=None, ge=0, le=1)

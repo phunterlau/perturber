@@ -212,6 +212,13 @@ uv run --locked probe sensitivity RUN_ID --metadata-key perturbation_family
 uv run --locked probe compare REFERENCE_RUN CANDIDATE_RUN --top-n 50
 ```
 
+Stability defaults to discovery pairs and reports `split` and `pair_ids`.
+Use `--split validation` or `--split heldout` only for explicit evaluation;
+`--split all` explicitly pools populations and emits a warning. Evaluation
+intervals refer to the original discovery-selected neurons. An empty selected
+split is an error, never a fallback to another population. Do not use held-out
+diagnostics to tune candidates while retaining a held-out replication claim.
+
 ## 6. Escalate an observational ranking to a causal workflow
 
 Prefer a seeded workflow driver so parent run IDs are resolved and retained

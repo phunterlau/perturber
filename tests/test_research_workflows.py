@@ -226,6 +226,49 @@ def test_scientific_comparison_and_split_half_stability(tmp_path) -> None:
     assert len(stability.neuron_intervals) == 2
 
 
+def test_stability_defaults_to_discovery_and_ignores_heldout_tensor_changes(tmp_path) -> None:
+    from typer.testing import CliRunner
+    from probing import cli
+    import json
+
+    service = make_service(tmp_path)
+    spec = fake_rank_spec(pairs=2)
+    heldout = spec.pairs[0].model_copy(update={"id": "untouched", "split": "heldout"})
+    spec = spec.model_copy(update={
+        "pairs": (*spec.pairs, heldout),
+        "execution": spec.execution.model_copy(update={"max_forward_passes": 6}),
+    })
+    outcome = service.execute(spec)
+    tensors = load_file(outcome.run_directory / "tensors.safetensors")
+    args = dict(run_id=outcome.manifest.run_id, summary=outcome.summary,
+                top_n=2, splits=5, bootstrap_iterations=20, seed=17)
+    result = rank_stability(tensors=tensors, **args)
+    assert result.split == "discovery"
+    assert result.pair_ids == tuple(pair.pair_id for pair in outcome.summary.pairs if pair.split == "discovery")
+    assert result.pair_count == 2
+    heldout_index = next(index for index, pair in enumerate(outcome.summary.pairs) if pair.split == "heldout")
+    heldout_prefix = f"importance.pair_{heldout_index}."
+    changed = {key: value * 10000 if key.startswith(heldout_prefix) else value
+               for key, value in tensors.items()}
+    assert rank_stability(tensors=changed, **args) == result
+    pooled = rank_stability(tensors=tensors, split="all", **args)
+    assert pooled.pair_count == 3 and "untouched" in pooled.pair_ids
+    assert any("pooled explicitly" in warning for warning in pooled.warnings)
+    evaluation = rank_stability(tensors=tensors, split="heldout", **args)
+    assert evaluation.pair_ids == ("untouched",)
+    assert evaluation.split_count == 0
+    with pytest.raises(ValueError, match="no prompt pairs"):
+        rank_stability(tensors=tensors, split="validation", **args)
+    with pytest.raises(ValueError, match="do not align"):
+        rank_stability(tensors={key: value for key, value in tensors.items()
+                                if not key.startswith(heldout_prefix)}, **args)
+    for split, expected in [("discovery", 2), ("heldout", 1), ("all", 3)]:
+        response = CliRunner().invoke(cli.app, ["--workspace", str(service.workspace),
+            "stability", outcome.manifest.run_id, "--split", split, "--bootstrap", "0"])
+        assert response.exit_code == 0, response.output
+        assert json.loads(response.stdout)["pair_count"] == expected
+
+
 def test_direction_injection_uses_orthogonal_random_controls(tmp_path) -> None:
     service = make_service(tmp_path)
     parent = service.execute(fake_rank_spec(pairs=2))

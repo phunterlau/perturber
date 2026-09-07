@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from statistics import fmean
+from typing import Literal
 
 import torch
 
@@ -151,13 +152,35 @@ def rank_stability(
     splits: int = 100,
     bootstrap_iterations: int = 1000,
     seed: int = 0,
+    split: Literal["discovery", "validation", "heldout", "all"] = "discovery",
 ) -> StabilityReport:
     matrix = _pair_importance_matrix(tensors)
+    if split not in {"discovery", "validation", "heldout", "all"}:
+        raise ValueError(f"unknown stability split {split!r}")
+    if matrix.shape[0] != len(summary.pairs):
+        raise ValueError("stability tensor and summary pair counts do not align")
+    population_indices = [
+        index for index, pair in enumerate(summary.pairs)
+        if split == "all" or pair.split == split
+    ]
+    if not population_indices:
+        raise ValueError(f"no prompt pairs in requested stability split {split!r}")
+    matrix = matrix[population_indices]
     pair_count = int(matrix.shape[0])
     effective_top_n = min(top_n, int(matrix.shape[1]))
     if effective_top_n < 1:
         raise ValueError("top_n must be positive")
     warnings = []
+    if split == "all":
+        warnings.append(
+            "All declared splits are pooled explicitly; this diagnostic must not "
+            "be used to tune candidates while retaining a held-out claim."
+        )
+    elif split != "discovery":
+        warnings.append(
+            "Evaluation-split stability is diagnostic only; neuron intervals "
+            "refer to the original discovery-selected candidates."
+        )
     overlaps: list[float] = []
     sign_agreements: list[float] = []
     rng = random.Random(seed)
@@ -250,6 +273,8 @@ def rank_stability(
     return StabilityReport(
         run_id=run_id,
         pair_count=pair_count,
+        split=split,
+        pair_ids=tuple(summary.pairs[index].pair_id for index in population_indices),
         top_n=effective_top_n,
         split_count=len(overlaps),
         mean_top_n_overlap=fmean(overlaps) if overlaps else None,

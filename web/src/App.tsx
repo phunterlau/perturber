@@ -63,6 +63,7 @@ import {
   rankingComparison,
   rankingObjectiveLabel,
   resolveNeuronEvidence,
+  selectIntervention,
   serializeWorkflowYaml,
   stageTitle,
   strongestSelectedPath,
@@ -313,7 +314,9 @@ function EvidenceView({ caseValue, plan, selectedStage, preflight, reviewStage, 
 function FFNCircuit({ caseValue, summaries }: { caseValue: ResearchCase; summaries: Record<string, EvidenceSummary> }) {
   const rank = Object.values(summaries).find(isRankSummary) ?? null;
   const coupling = Object.values(summaries).find(isFFNCouplingSummary);
-  const intervention = Object.values(summaries).find(isInterventionSummary);
+  const [interventionKey, setInterventionKey] = useState("");
+  const interventionView = selectIntervention(summaries, interventionKey);
+  const intervention = interventionView.selected?.summary;
   const direction = Object.values(summaries).find(isDirectionSummary);
   const [split, setSplit] = useState<"all" | Split>("all");
   const [sign, setSign] = useState<"all" | "target" | "control">("all");
@@ -340,7 +343,9 @@ function FFNCircuit({ caseValue, summaries }: { caseValue: ResearchCase; summari
     <FFNDecomposition rank={rank} residual={residual} objective={objective} />
     <LayerAwareCoupling summary={coupling} neurons={couplingNeurons} objective={objective} selected={selected} select={setSelected} />
     <div className="analysis-grid"><FFNLayers summary={rank} objective={objective} /><section className="panel neuron-inspector"><h3>Neuron inspector · score definitions remain separate</h3>{inspectedLayer != null && inspectedNeuron != null && <dl><dt>Neuron</dt><dd>L{inspectedLayer}:n{inspectedNeuron}</dd><dt>Activation Δa</dt><dd>{fmt(coupledNeuron?.activation_delta_mean ?? neuron?.activation_delta_mean, 6)}</dd><dt>Direct coupling</dt><dd>{fmt(coupledNeuron?.direct_coupling ?? neuron?.coupling, 6)}</dd><dt>Direct signed importance</dt><dd>{fmt(directSignedImportance, 6)}</dd><dt>Direct RMS</dt><dd>{fmt(coupledNeuron?.direct_importance_rms ?? neuron?.importance_rms, 6)}</dd><dt>Importance coherence</dt><dd>{neuron?.importance_coherence == null ? "undefined" : `${(neuron.importance_coherence * 100).toFixed(0)}%`}</dd><dt>Native-local coupling</dt><dd>{fmt(coupledNeuron?.native_coupling_mean, 6)}</dd><dt>Native-local RMS</dt><dd>{fmt(coupledNeuron?.native_importance_rms, 6)}</dd><dt>Downstream coupling</dt><dd>{fmt(coupledNeuron?.downstream_coupling_mean, 6)}</dd><dt>Downstream signed importance</dt><dd>{fmt(coupledNeuron?.downstream_importance_mean, 6)}</dd><dt>Downstream RMS</dt><dd>{fmt(coupledNeuron?.downstream_importance_rms, 6)}</dd><dt>Downstream coherence</dt><dd>{coupledNeuron?.downstream_importance_coherence == null ? "undefined" : `${(coupledNeuron.downstream_importance_coherence * 100).toFixed(0)}%`}</dd><dt>Downstream consistency</dt><dd>{coupledNeuron ? `${(coupledNeuron.downstream_sign_consistency * 100).toFixed(0)}%` : "undefined"}</dd><dt>Direct/downstream sign agreement</dt><dd>{coupledNeuron ? `${(coupledNeuron.direct_downstream_sign_agreement * 100).toFixed(0)}%` : "undefined"}</dd></dl>}<div className="mini-neurons">{neurons.slice(0, 20).map((item) => <button className={item.layer === inspectedLayer && item.neuron === inspectedNeuron ? "active" : ""} key={`${item.layer}:${item.neuron}`} onClick={() => setSelected(key(item.layer, item.neuron))}>L{item.layer}:n{item.neuron}<small>{objective === "shared_direction" ? fmt(item.importance_mean, 5) : item.importance_rms.toFixed(5)}</small></button>)}</div></section></div>
-    <DosePanel title={intervention?.candidate_score_method === "downstream_endpoint_gradient" ? "Downstream-gradient candidates vs same-layer controls" : intervention?.candidate_score_method === "direct_downstream_overlap" ? "Direct/downstream overlap vs same-layer controls" : "Direct-readout candidates vs same-layer controls"} doses={(intervention?.doses ?? []).filter((item) => split === "all" || item.split === split)} countKey="neuron_count" />
+    <div className="filter-bar"><label>INTERVENTION RUN<select value={interventionView.selected?.key ?? ""} disabled={!interventionView.options.length} onChange={(event) => setInterventionKey(event.target.value)}>{!interventionView.options.length && <option value="">No intervention runs</option>}{interventionView.options.map(({ key, summary }) => <option key={key} value={key}>{caseValue.stages.find((stage) => stage.key === key)?.name ?? key} · {label(summary.candidate_score_method ?? "direct_structural")}</option>)}</select></label><span>{caseValue.stages.find((stage) => stage.key === interventionView.selected?.key)?.run_id}</span></div>
+    <p className="muted">The split filter applies to intervention doses. Neuron and coupling rankings retain their recorded discovery population.</p>
+    {intervention && !(intervention.doses ?? []).some((item) => split === "all" || item.split === split) ? <Empty>No intervention doses in the selected split.</Empty> : <DosePanel title={intervention?.candidate_score_method === "downstream_endpoint_gradient" ? "Downstream-gradient candidates vs same-layer controls" : intervention?.candidate_score_method === "direct_downstream_overlap" ? "Direct/downstream overlap vs same-layer controls" : "Direct-readout candidates vs same-layer controls"} doses={(intervention?.doses ?? []).filter((item) => split === "all" || item.split === split)} countKey="neuron_count" />}
     {intervention && <section className="panel lineage-note"><h3>Candidate provenance</h3><p className="muted">{intervention.candidate_score_method === "downstream_endpoint_gradient" ? "Candidates were ranked by the layer-aware gradient from each FFN output to the final target−control observable." : intervention.candidate_score_method === "direct_downstream_overlap" ? "Candidates are the preregistered intersection of the direct-readout and downstream-gradient top pools, ordered by downstream rank." : "Candidates were ranked by the model's final-norm and LM-head structural readout."} Objective: {rankingObjectiveLabel(intervention.candidate_ranking_objective ?? "effect_magnitude")}. The controlled intervention, qualification gate, and held-out result—not this ranking method—determine claim strength.</p><code>{intervention.parent_run_id}{intervention.rank_run_id && intervention.rank_run_id !== intervention.parent_run_id ? ` → rank ${intervention.rank_run_id}` : ""}</code></section>}
     <section className="panel direction-panel"><div><h3>Residual-direction controllability</h3><p className="muted">This is a separate controllability test. It does not localize the effect to ranked neurons.</p></div>{direction ? <DoseChart doses={direction.doses} countKey="strength" /> : <p className="empty-inline">Direction stage not yet verified.</p>}</section>
   </div>;
@@ -357,11 +362,12 @@ function TrajectoryWorkspace({ caseValue, summaries, confirmBand, busy }: { case
   const [bandEnd, setBandEnd] = useState("");
   if (!summary) return <Empty>Run the paired trajectory stage to see where the two prompts begin to diverge.</Empty>;
   const visiblePairs = summary.pairs.filter((item) => split === "all" || item.split === split);
-  const pairId = visiblePairs.some((item) => item.pair_id === selectedPairId) ? selectedPairId : visiblePairs[0]?.pair_id ?? summary.pairs[0]?.pair_id ?? "";
+  const pairId = visiblePairs.some((item) => item.pair_id === selectedPairId) ? selectedPairId : visiblePairs[0]?.pair_id ?? "";
+  if (!pairId) return <div className="trajectory-stack"><div className="filter-bar"><label>SPLIT<select value={split} onChange={(event) => { setSplit(event.target.value as typeof split); setSelectedPairId(""); setBandStart(""); setBandEnd(""); }}><option>all</option><option>discovery</option><option>validation</option><option>heldout</option></select></label></div><Empty>No trajectory pairs in the selected split.</Empty></div>;
   const metricView = trajectoryMetricView(summary, pairId, metric, checkpoint);
   const rows = metricView.rows;
   const tickRows = checkpoint === "all" ? rows.filter((item) => item.checkpoint === "post_ffn") : rows;
-  const pair = summary.pairs.find((item) => item.pair_id === pairId) ?? summary.pairs[0];
+  const pair = summary.pairs.find((item) => item.pair_id === pairId);
   const transitions = pair?.transitions ?? [];
   const suggestion = suggestedTrajectoryBand(summary, pairId);
   const availableLayers = [...new Set((pair?.checkpoints ?? []).map((item) => item.layer))].sort((a, b) => a - b);

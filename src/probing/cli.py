@@ -34,7 +34,7 @@ from .contracts import (
     RunManifest,
     TrajectorySpec,
 )
-from .errors import EndpointError, ProbeError, SpecError
+from .errors import ArtifactError, EndpointError, ProbeError, SpecError
 from .legacy import DEFAULT_MODEL, PROJECT_DIRECTORY, main as legacy_main
 from .models import ModelManager
 from .reporting import build_overview, query_envelope
@@ -1195,6 +1195,10 @@ def stability_command(
     splits: Annotated[int, typer.Option(min=1, max=1000)] = 100,
     bootstrap: Annotated[int, typer.Option(min=0, max=10000)] = 1000,
     seed: Annotated[int, typer.Option()] = 0,
+    split: Annotated[
+        Literal["discovery", "validation", "heldout", "all"],
+        typer.Option(help="Pair population; all explicitly pools splits."),
+    ] = "discovery",
 ) -> None:
     from safetensors.torch import load_file
 
@@ -1222,6 +1226,7 @@ def stability_command(
                 splits=splits,
                 bootstrap_iterations=bootstrap,
                 seed=seed,
+                split=split,
             )
         )
     except Exception as exc:
